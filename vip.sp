@@ -388,7 +388,10 @@ public Action SetVipFeatures(Handle timer, int client)
 
 public Action SetVipFeaturesRepeating(Handle timer, int client)
 {
-	SetVipFeaturesRepeatingFunc(client);
+	if (!g_VipActive[client])
+	{
+		SetVipFeaturesRepeatingFunc(client);		
+	}
 }
 
 public void SetVipFeaturesFunc(int client)
