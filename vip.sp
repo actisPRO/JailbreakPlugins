@@ -76,6 +76,7 @@ public Action CommandVIP(int client, int args)
 			menu.AddItem("speed", "Скорость (10 секунд)");
 			menu.AddItem("heal", "Лечение (+100 HP)");
 			menu.AddItem("regen", "Регенерация (15 HP/с)");
+			menu.AddItem("armor", "Броня (+100 брони)");
 			
 			if (GetClientTeam(client) == CS_TEAM_T)
 			{
@@ -122,6 +123,10 @@ public int VipMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			else if (StrEqual(info, "regen"))
 			{
 				CommandVIPRegenerate(param1);
+			}
+			else if (StrEqual(info, "armor"))
+			{
+				CommandVIPArmor(param1);
 			}
 			else if (StrEqual(info, "unrebel"))
 			{
@@ -180,6 +185,13 @@ public void CommandVIPRegenerate(int client)
 	CreateTimer(1.0, RegenerateHP, client, TIMER_REPEAT);
 	
 	g_VipUsed[client] = true;	
+}
+
+public void CommandVIPArmor(int client)
+{
+	SetEntProp(client, Prop_Data, "m_ArmorValue", 100, 1);
+	
+	g_VipUsed[client] = true;
 }
 
 public void CommandVIPUnrebel(int client)
@@ -331,6 +343,8 @@ int CalcRank(int xp)
 	{
 		return 12;
 	}
+	
+	return 1;
 }
 
 public Action SetVipFeatures(Handle timer, int client)
