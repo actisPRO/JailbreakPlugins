@@ -403,7 +403,19 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				{
 					SetEntityHealth(param1, GetClientHealth(param1) - 1);
 					credits = SetCredits(param1, credits - 1);
-					OpenShopMenu(param1, 0);
+					
+					int random = GetRandomInt(1, 10);
+					if (random == 7)
+					{
+						char name[35];
+						GetClientName(param1, name, 35);
+						ForcePlayerSuicide(param1);
+						CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
+					}
+					else
+					{						
+						OpenShopMenu(param1, 0);
+					}
 				}
 			}
 			else
@@ -519,6 +531,7 @@ public Action OpenShopMenu(int client, int args)
 					menu.AddItem("deagle", buffer);
 					Format(buffer, 255, "Протеин (%d сигарет)", g_priceProtein.IntValue);
 					menu.AddItem("protein", buffer);
+					
 		
 					menu.Display(client, MENU_TIME_FOREVER);
 				}

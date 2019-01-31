@@ -17,11 +17,16 @@ public Plugin myinfo = {
 };
 
 bool g_VipUsed[MAXPLAYERS+1];
+bool g_VipActive[MAXPLAYERS+1];
+
 int g_MaxHealth[MAXPLAYERS+1];
 int g_MaxHealthCanBeRegenerated[MAXPLAYERS+1];	
 int m_flLaggedMovementValue;
-float g_dSpeed;
 int g_Iteration[MAXPLAYERS+1];
+
+float g_dSpeed;
+
+Handle g_VipReactivate[MAXPLAYERS+1];
 
 //-гравитация, +скорость, +100 хп, реген 5 хп/с, снять бунт, маскировка под кт
 //+скорость, -гравитация
@@ -40,6 +45,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_vip", CommandVIP, ADMFLAG_CUSTOM5, "Opens admin menu");
 	
 	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("round_end", Event_RoundEnd);
 	
 	for (int i = 0; i <= MAXPLAYERS; ++i)
 	{
@@ -60,7 +67,29 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 	
 	g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue);
 	
-	CreateTimer(0.6, SetVipFeatures, client);	
+	CreateTimer(0.6, SetVipFeatures, client);
+	g_VipReactivate[client] = CreateTimer(1.0, SetVipFeatures, client, TIMER_REPEAT);
+}
+
+public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (g_VipReactivate[client] != INVALID_HANDLE)
+	{
+		KillTimer(g_VipReactivate[client]);
+	}
+}
+
+public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	for (int i = 1; i <= MAXPLAYERS; ++i)
+	{
+		if (g_VipReactivate[i] != INVALID_HANDLE)
+		{
+			KillTimer(g_VipReactivate[i]);
+		}
+	}
 }
 
 public Action CommandVIP(int client, int args)
@@ -136,6 +165,8 @@ public int VipMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			{
 				CommandVIPFakect(param1);
 			}
+			
+			g_VipActive[param1] = true;
 		}		
 	}
 }
@@ -349,7 +380,10 @@ int CalcRank(int xp)
 
 public Action SetVipFeatures(Handle timer, int client)
 {
-	SetVipFeaturesFunc(client);
+	if (!g_VipActive[client])
+	{
+		SetVipFeaturesFunc(client);		
+	}
 }
 
 public void SetVipFeaturesFunc(int client)
@@ -377,17 +411,20 @@ public void SetVipFeaturesFunc(int client)
 public Action DisableVipGravity(Handle timer, int client)
 {
 	SetEntityGravity(client, 0.85);
+	g_VipActive[client] = false;
 }
 
 public Action DisableVipSpeed(Handle timer, int client)
 {
 	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
+	g_VipActive[client] = false;
 }
 
 public Action RegenerateHP(Handle timer, int client)
 {
 	if (g_Iteration[client] == 15)
 	{
+		g_VipActive[client] = false;
 		KillTimer(timer);
 		return;
 	}
@@ -408,4 +445,5 @@ public Action DisableFakeCt(Handle timer, int client)
 {
 	SetEntityModel(client, "models/player/custom/ekko/ekko.mdl");
 	SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/jailbreak/prisoner3/prisoner3_arms.mdl");
+	g_VipActive[client] = false;
 }
