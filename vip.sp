@@ -68,7 +68,7 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 	g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue);
 	
 	CreateTimer(0.6, SetVipFeatures, client);
-	g_VipReactivate[client] = CreateTimer(1.0, SetVipFeatures, client, TIMER_REPEAT);
+	g_VipReactivate[client] = CreateTimer(1.0, SetVipFeaturesRepeating, client, TIMER_REPEAT);
 }
 
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
@@ -386,6 +386,11 @@ public Action SetVipFeatures(Handle timer, int client)
 	}
 }
 
+public Action SetVipFeaturesRepeating(Handle timer, int client)
+{
+	SetVipFeaturesRepeatingFunc(client);
+}
+
 public void SetVipFeaturesFunc(int client)
 {
 	g_MaxHealth[client] = 100 + CalcRank(GetXP(client)) * 10;
@@ -406,6 +411,13 @@ public void SetVipFeaturesFunc(int client)
 		SetEntityModel(client, "models/player/custom_player/kuristaja/nanosuit/nanosuitv3.mdl");
 		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/nanosuit/nanosuit_arms.mdl");
 	}
+}
+
+public void SetVipFeaturesRepeatingFunc(int client)
+{
+	SetEntityGravity(client, 0.85);	
+	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);	
+	CS_SetClientClanTag(client, "[VIP]");
 }
 
 public Action DisableVipGravity(Handle timer, int client)
