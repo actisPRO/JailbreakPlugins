@@ -51,7 +51,16 @@ public void OnPluginStart()
 	for (int i = 0; i <= MAXPLAYERS; ++i)
 	{
 		g_VipUsed[i] = false;
-	}
+	}	
+	
+	CreateTimer(120.0, Rehash, 0, TIMER_REPEAT);
+}
+
+
+public Action Rehash(Handle timer, int uselessInfo)
+{
+	ServerCommand("sm_rehash");
+	PrintToServer("VIP plugin has reloaded admin list");
 }
 
 public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -275,6 +284,29 @@ bool IsVip(int client)
 				{
 					return true;
 				}
+			}
+			
+			delete query;
+		}
+	
+		ReplaceString(steamid, 64, "STEAM_1", "STEAM_0", false);
+		Format(buffer, 255, "SELECT `srv_flags` FROM `sb_admins` WHERE `authid` = '%s';", steamid);
+		query = SQL_Query(db, buffer);
+		
+		if (query == null)
+		{
+			PrintToServer("SQL Query errored (GetXP(%d))", client);
+		}
+		else
+		{
+			while (SQL_FetchRow(query))
+			{
+				char result[255];
+				SQL_FetchString(query, 0, result, 255);
+				if (StrContains(result, "s", false) != -1)
+				{
+					return true;
+				}
 				else
 				{
 					return false;
@@ -282,7 +314,9 @@ bool IsVip(int client)
 			}
 			
 			delete query;
-		}		
+		}
+
+		delete db;
 	}
 	
 	return false;
