@@ -69,15 +69,18 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 	
 	g_VipUsed[client] = false;
 	
-	if (!IsVip(client) && (GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT))
+	if (!(GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT))
 	{
 		return;
 	}	
 	
-	g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue);
+	if (IsVip(client))
+	{
+		g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue);
 	
-	CreateTimer(0.6, SetVipFeatures, client);
-	g_VipReactivate[client] = CreateTimer(1.0, SetVipFeaturesRepeating, client, TIMER_REPEAT);
+		CreateTimer(0.6, SetVipFeatures, client);
+		g_VipReactivate[client] = CreateTimer(1.0, SetVipFeaturesRepeating, client, TIMER_REPEAT);
+	}	
 }
 
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
