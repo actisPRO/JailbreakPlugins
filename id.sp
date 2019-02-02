@@ -65,23 +65,46 @@ void Event_RoundFreezeEnd(Event event, const char[] name, bool dontBroadcast)
 		return;
 	}
 	
-	int iterations = cts - maxCt;
+	int toKick = cts - maxCt;
 	
-	for (int i = 0; i < iterations; ++i)
+	/*int[] players = new int[MaxClients];
+	for (int i = 0; i <= MaxClients; ++i)
 	{
-		int lowestClient;
+		if (IsClientInGame(i))
+		{
+			if (GetClientTeam(i) == CS_TEAM_CT)
+			{
+				players[i] = GetAdminPriority(GetAdminRank(i));
+			}
+			else
+			{
+				players[i] = 0;
+			}
+		}
+		else
+		{
+			players[i] = 0;
+		}
+	}
+	
+	SortIntegers(players, MaxClients, Sort_Descending);*/
+	
+	
+	for (int i = 0; i < toKick; ++i)
+	{
+		int lowestClient = -1;
 		int lowestClientXp = VERY_BIG_NUMBER;
 		
 		for (int j = 1; j <= MaxClients; ++j)
 		{
 			if (IsClientInGame(j) && GetClientTeam(j) == CS_TEAM_CT)
-			{
-				PrintToServer("Client: %d", j);
-				PrintToServer("Lowest Client: %d", lowestClient);
-				PrintToServer("Lowest Xp: %d", lowestClientXp);
-				
+			{				
 				int xp = GetXP(j);
-				if (xp < lowestClientXp)
+				
+				PrintToServer("%d vs %d", GetAdminPriority(GetAdminRank(lowestClient)), GetAdminPriority(GetAdminRank(j)));
+				PrintToServer("%d vs %d", lowestClientXp, GetXP(j));
+				
+				if (GetAdminPriority(GetAdminRank(j)) <= GetAdminPriority(GetAdminRank(lowestClient)) && xp < lowestClientXp)
 				{
 					lowestClient = j;
 					lowestClientXp = xp;
@@ -239,15 +262,20 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 	{
 		char steamid64[64];
 		char steamid2[64];
+		char ip[32];
+		char usr[35];
 	   	GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
 	   	GetClientAuthId(client, AuthId_Steam2, steamid2, 64);
+		GetClientIP(client, ip, 32, true);
+		GetClientName(client, usr, 35);
+		
 		
 		char buffer[255];
 		Format(buffer, 255, "SELECT `id` FROM `id_accounts` WHERE `steamid64` = '%s'", steamid64);
 		DBResultSet query = SQL_Query(db, buffer);
 		if (query == null)
 	   	{
-			Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `xp`) VALUES (NULL, '%s','%s', '0');", steamid2, steamid64);
+			Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
 			if (!SQL_FastQuery(db, buffer))
 			{
 				SQL_GetError(db, error, sizeof(error));
@@ -258,7 +286,16 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		{
 			if (SQL_GetRowCount(query) == 0)
 			{
-				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `xp`) VALUES (NULL, '%s','%s', '0');", steamid2, steamid64);
+				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
+				if (!SQL_FastQuery(db, buffer))
+				{
+					SQL_GetError(db, error, sizeof(error));
+					PrintToServer("Failed to query (error: %s)", error);
+				}
+			}
+			else
+			{
+				Format(buffer, 255, "UPDATE `id_accounts` SET `IP` = '%s', `name` = '%s' WHERE `id_accounts`.`steamid64` = %s;", ip, usr, steamid64);
 				if (!SQL_FastQuery(db, buffer))
 				{
 					SQL_GetError(db, error, sizeof(error));
@@ -387,6 +424,11 @@ int GetId(int client)
 
 int GetXP(int client)
 {
+	if (client == -1)
+	{
+		return 0;
+	}
+	
 	char error[255];
 	Database db = SQL_DefConnect(error, sizeof(error));
 		    
@@ -423,6 +465,12 @@ int GetXP(int client)
 
 char[] GetAdminRank(int client)
 {
+	if (client == -1)
+	{
+		char res[64] = "Говнокод";
+		return res;
+	}
+	
 	char error[255];
 	Database db = SQL_DefConnect(error, sizeof(error));
 		    
@@ -594,19 +642,23 @@ int GetAdminPriority(char[] rank)
 {
 	if (StrEqual(rank, "Главный администратор"))
 	{
-		return 4;
+		return 5;
 	}
 	else if (StrEqual(rank, "Суперадминистратор"))
 	{
-		return 3;
+		return 4;
 	}
 	else if (StrEqual(rank, "Администратор"))
 	{
-		return 2;
+		return 3;
 	}
 	else if (StrEqual(rank, "Хэлпер"))
 	{
-		return 1;
+		return 2;
+	}
+	else if (StrEqual(rank, "Говнокод"))
+	{
+		return 1000;
 	}
 	else
 	{
