@@ -510,6 +510,11 @@ void WriteShopUsed(int client)
 
 public Action Smoke(int client, int args)
 {
+	if (!IsPlayerAlive(client))
+	{
+		CGOPrintToChat(client, "{GREEN}Хорошая попытка, но нет. Мертвецы не могут курить.{DEFAULT}");
+	}
+	
 	int credits = GetCredits(client);
 	SetEntityHealth(client, GetClientHealth(client) - 1);
 	credits = SetCredits(client, credits - 1);
@@ -522,10 +527,8 @@ public Action Smoke(int client, int args)
 		ForcePlayerSuicide(client);
 		CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
 	}
-	else
-	{						
-		OpenShopMenu(client, 0);
-	}
+	
+	CGOPrintToChat(client, "{GREEN}Вы скурили сигаретку.{DEFAULT}");
 }
 
 public Action OpenShopMenu(int client, int args)
