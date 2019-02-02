@@ -39,6 +39,8 @@ bool g_ShopAvaliable;
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_shop", OpenShopMenu);
+	RegConsoleCmd("sm_store", OpenShopMenu);
+	RegConsoleCmd("sm_smoke", Smoke);
 	RegConsoleCmd("sm_balance", CheckBalance);
 	RegConsoleCmd("sm_transfer", Transfer);
 	
@@ -363,60 +365,67 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			
 			if (g_ShopAvaliable)
 			{
-				if (StrEqual(info, "smoke"))
+				if (g_ShopUsed[param1] == 0)
 				{
-					Item_Smoke(param1);				
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceSmoke.IntValue);
-				}
-				else if (StrEqual(info, "flashbang"))
-				{
-					Item_Flashbang(param1);
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceFlash.IntValue);
-				}
-				else if (StrEqual(info, "healthshot"))
-				{
-					Item_Healthshot(param1);
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceHealth.IntValue);
-				}
-				else if (StrEqual(info, "armor"))
-				{
-					Item_Armor(param1);
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceArmor.IntValue);
-				}
-				else if (StrEqual(info, "deagle")) 
-				{
-					Item_Deagle(param1);
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceDeagle.IntValue);
-				}
-				else if (StrEqual(info, "protein"))
-				{
-					Item_Protein(param1);
-					WriteShopUsed(param1);
-					credits = SetCredits(param1, credits - g_priceProtein.IntValue);
-				}
-				else if (StrEqual(info, "bad_idea"))
-				{
-					SetEntityHealth(param1, GetClientHealth(param1) - 1);
-					credits = SetCredits(param1, credits - 1);
-					
-					int random = GetRandomInt(1, 10);
-					if (random == 7)
+					if (StrEqual(info, "smoke"))
 					{
-						char name[35];
-						GetClientName(param1, name, 35);
-						ForcePlayerSuicide(param1);
-						CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
+						Item_Smoke(param1);				
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceSmoke.IntValue);
 					}
-					else
-					{						
-						OpenShopMenu(param1, 0);
+					else if (StrEqual(info, "flashbang"))
+					{
+						Item_Flashbang(param1);
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceFlash.IntValue);
+					}
+					else if (StrEqual(info, "healthshot"))
+					{
+						Item_Healthshot(param1);
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceHealth.IntValue);
+					}
+					else if (StrEqual(info, "armor"))
+					{
+						Item_Armor(param1);
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceArmor.IntValue);
+					}
+					else if (StrEqual(info, "deagle")) 
+					{
+						Item_Deagle(param1);
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceDeagle.IntValue);
+					}
+					else if (StrEqual(info, "protein"))
+					{
+						Item_Protein(param1);
+						WriteShopUsed(param1);
+						credits = SetCredits(param1, credits - g_priceProtein.IntValue);
+					}
+					else if (StrEqual(info, "bad_idea"))
+					{
+						SetEntityHealth(param1, GetClientHealth(param1) - 1);
+						credits = SetCredits(param1, credits - 1);
+						
+						int random = GetRandomInt(1, 10);
+						if (random == 7)
+						{
+							char name[35];
+							GetClientName(param1, name, 35);
+							ForcePlayerSuicide(param1);
+							CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
+						}
+						else
+						{						
+							OpenShopMenu(param1, 0);
+						}
 					}
 				}
+				else
+				{
+					CGOPrintToChat(param1, "{GREEN}[Чёрный рынок]{DEFAULT} Прости, но я могу пронести тебе только одну вещь за день. Ты же не хочешь чтобы нас накрыли?");
+				}				
 			}
 			else
 			{
@@ -499,51 +508,56 @@ void WriteShopUsed(int client)
 	g_ShopUsed[client] = 1;
 }
 
+public Action Smoke(int client, int args)
+{
+	int credits = GetCredits(client);
+	SetEntityHealth(client, GetClientHealth(client) - 1);
+	credits = SetCredits(client, credits - 1);
+	
+	int random = GetRandomInt(1, 10);
+	if (random == 7)
+	{
+		char name[35];
+		GetClientName(client, name, 35);
+		ForcePlayerSuicide(client);
+		CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
+	}
+	else
+	{						
+		OpenShopMenu(client, 0);
+	}
+}
+
 public Action OpenShopMenu(int client, int args)
 {
 	if (IsPlayerAlive(client)) 
 	{
 		if (GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT)
 		{
-			if (g_ShopUsed[client] == 0)
-			{
-				if (g_ShopAvaliable)
-				{
-					int credits = GetCredits(client);
-				
-					Menu menu = new Menu(ShopMenuHandler, MENU_ACTIONS_ALL);
-					
-					char title[255];
-					Format(title, 255, "Чёрный рынок | Баланс: %d", credits);
-					menu.SetTitle(title);
-					
-					char buffer[255];
-					menu.AddItem("bad_idea", "Закурить", 1);
-					Format(buffer, 255, "Дымовая граната (%d сигарет)", g_priceSmoke.IntValue);
-					menu.AddItem("smoke", buffer);
-					Format(buffer, 255, "Световая граната (%d сигарет)", g_priceFlash.IntValue);
-					menu.AddItem("flashbang", buffer);
-					Format(buffer, 255, "Аптечка (%d сигарет)", g_priceHealth.IntValue);
-					menu.AddItem("healthshot", buffer);
-					Format(buffer, 255, "Броня (%d сигарет)", g_priceArmor.IntValue);
-					menu.AddItem("armor", buffer);
-					Format(buffer, 255, "Пистолет (%d сигарет)", g_priceDeagle.IntValue);
-					menu.AddItem("deagle", buffer);
-					Format(buffer, 255, "Протеин (%d сигарет)", g_priceProtein.IntValue);
-					menu.AddItem("protein", buffer);
-					
+			int credits = GetCredits(client);
+			
+			Menu menu = new Menu(ShopMenuHandler, MENU_ACTIONS_ALL);
+			
+			char title[255];
+			Format(title, 255, "Чёрный рынок | Баланс: %d", credits);
+			menu.SetTitle(title);
+			
+			char buffer[255];			
+			Format(buffer, 255, "Аптечка (%d сигарет)", g_priceHealth.IntValue);
+			menu.AddItem("healthshot", buffer);			
+			Format(buffer, 255, "Броня (%d сигарет)", g_priceArmor.IntValue);
+			menu.AddItem("armor", buffer);			
+			Format(buffer, 255, "Пистолет (%d сигарет)", g_priceDeagle.IntValue);
+			menu.AddItem("deagle", buffer);			
+			Format(buffer, 255, "Световая граната (%d сигарет)", g_priceFlash.IntValue);
+			menu.AddItem("flashbang", buffer);
+			Format(buffer, 255, "Дымовая граната (%d сигарет)", g_priceSmoke.IntValue);
+			menu.AddItem("smoke", buffer);
+			Format(buffer, 255, "Протеин (%d сигарет)", g_priceProtein.IntValue);
+			menu.AddItem("protein", buffer);
+			
 		
-					menu.Display(client, MENU_TIME_FOREVER);
-				}
-				else
-				{
-					CGOPrintToChat(client, "{GREEN}[Чёрный рынок]{DEFAULT} Прости, я могу торговать только в первые 30 секунд раунда.");
-				}
-			}
-			else
-			{
-				CGOPrintToChat(client, "{GREEN}[Чёрный рынок]{DEFAULT} Прости, но я могу пронести тебе только одну вещь за день. Ты же не хочешь чтобы нас накрыли?");
-			}			
+			menu.Display(client, MENU_TIME_FOREVER);					
 		}
 		else
 		{
@@ -599,6 +613,6 @@ void Item_Deagle(int client)
 
 void Item_Protein(int client)
 {
-	SetEntityHealth(client, 1000);
+	SetEntityHealth(client, 500);
 	CGOPrintToChatAll("{GREEN}[Чёрный рынок]{DEFAULT} Кому-то пронесли протеин.");
 }

@@ -124,10 +124,10 @@ public Action CommandVIP(int client, int args)
 			Menu menu = new Menu(VipMenuHandler, MENU_ACTIONS_ALL);
 			menu.SetTitle("VIP-меню");
 			
-			menu.AddItem("gravity", "Гравитация (10 секунд)");
-			menu.AddItem("speed", "Скорость (10 секунд)");
 			menu.AddItem("heal", "Лечение (+100 HP)");
 			menu.AddItem("regen", "Регенерация (15 HP/с)");
+			menu.AddItem("gravity", "Гравитация (10 секунд)");
+			menu.AddItem("speed", "Скорость (10 секунд)");			
 			menu.AddItem("armor", "Броня (+100 брони)");
 			
 			if (GetClientTeam(client) == CS_TEAM_T)
