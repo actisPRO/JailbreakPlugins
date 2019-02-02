@@ -79,11 +79,7 @@ public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadc
 		
 		PrintToServer("VIP spawned");
 		char name[32];
-		GetClientName(client, name, 32);
-		
-		PrintToServer("Name: %s", name);
-		PrintToServer("Gravity: %f", GetEntityGravity(client));	
-		PrintToServer("HP: %d", GetClientHealth(client));
+		GetClientName(client, name, 32);		
 	}	
 }
 
