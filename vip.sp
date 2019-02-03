@@ -60,7 +60,7 @@ public void OnPluginStart()
 public Action Rehash(Handle timer, int uselessInfo)
 {
 	ServerCommand("sm_rehash");
-	PrintToServer("VIP plugin has reloaded admin list");
+	LogMessage("VIP plugin has reloaded admin list");
 }
 
 /*public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
@@ -86,6 +86,8 @@ public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadc
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	int user = event.GetInt("userid");
+	
+	g_VipUsed[client] = false;
 	
 	if (IsVip(client) && IsPlayerAlive(client))
 	{
@@ -179,28 +181,35 @@ public Action CommandVIP(int client, int args)
 {
 	if (IsPlayerAlive(client))
 	{
-		if ((GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT) && !g_VipUsed[client])
+		if (GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT)
 		{
-			Menu menu = new Menu(VipMenuHandler, MENU_ACTIONS_ALL);
-			menu.SetTitle("VIP-меню");
-			
-			menu.AddItem("heal", "Лечение (+100 HP)");
-			menu.AddItem("regen", "Регенерация (10 HP/с)");
-			menu.AddItem("gravity", "Гравитация (10 секунд)");
-			menu.AddItem("speed", "Скорость (10 секунд)");			
-			menu.AddItem("armor", "Броня (+100 брони)");
-			
-			if (GetClientTeam(client) == CS_TEAM_T)
+			if (!g_VipUsed[client])
 			{
-				menu.AddItem("unrebel", "Снять окраску бунтаря");
-				menu.AddItem("fakect", "Маскировка (10 секунд)");			
+				Menu menu = new Menu(VipMenuHandler, MENU_ACTIONS_ALL);
+				menu.SetTitle("VIP-меню");
+				
+				menu.AddItem("heal", "Лечение (+100 HP)");
+				menu.AddItem("regen", "Регенерация (10 HP/с)");
+				menu.AddItem("gravity", "Гравитация (10 секунд)");
+				menu.AddItem("speed", "Скорость (10 секунд)");			
+				menu.AddItem("armor", "Броня (+100 брони)");
+				
+				if (GetClientTeam(client) == CS_TEAM_T)
+				{
+					menu.AddItem("unrebel", "Снять окраску бунтаря");
+					menu.AddItem("fakect", "Маскировка (10 секунд)");			
+				}
+				
+				menu.Display(client, MENU_TIME_FOREVER);
 			}
-			
-			menu.Display(client, MENU_TIME_FOREVER);
+			else
+			{
+				CGOPrintToChat(client, "{GREEN}[VIP]{DEFAULT} VIP-меню можно использовать лишь один раз за раунд!");
+			}			
 		}
 		else if (g_VipUsed[client])
 		{
-			CGOPrintToChat(client, "{GREEN}[VIP]{DEFAULT} VIP-меню можно использовать только один раз за раунд!");
+			CGOPrintToChat(client, "{GREEN}[VIP]{DEFAULT} Вы не можете использовать VIP-меню!");
 		}
 	}
 	else
