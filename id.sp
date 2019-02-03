@@ -104,10 +104,18 @@ void Event_RoundFreezeEnd(Event event, const char[] name, bool dontBroadcast)
 				PrintToServer("%d vs %d", GetAdminPriority(GetAdminRank(lowestClient)), GetAdminPriority(GetAdminRank(j)));
 				PrintToServer("%d vs %d", lowestClientXp, GetXP(j));
 				
-				if (GetAdminPriority(GetAdminRank(j)) <= GetAdminPriority(GetAdminRank(lowestClient)) && xp < lowestClientXp)
+				if (GetAdminPriority(GetAdminRank(j)) < GetAdminPriority(GetAdminRank(lowestClient)))	
 				{
 					lowestClient = j;
-					lowestClientXp = xp;
+					lowestClientXp = xp;	
+				}
+				else if (GetAdminPriority(GetAdminRank(j)) == GetAdminPriority(GetAdminRank(lowestClient)))
+				{
+					if (xp <= lowestClientXp)
+					{
+						lowestClient = j;
+						lowestClientXp = xp;						
+					}
 				}
 			}
 		}

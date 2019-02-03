@@ -468,7 +468,6 @@ public void SetVipFeaturesRepeatingFunc(int client)
 {
 	SetEntityGravity(client, 0.85);
 	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
-	CS_SetClientClanTag(client, "[VIP]");
 }
 
 public Action DisableVipGravity(Handle timer, int client)

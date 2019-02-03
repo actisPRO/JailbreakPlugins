@@ -512,15 +512,16 @@ public Action Smoke(int client, int args)
 {
 	if (!IsPlayerAlive(client))
 	{
-		CGOPrintToChat(client, "{GREEN}Хорошая попытка, но нет. Мертвецы не могут курить.{DEFAULT}");
-	}
+		CGOPrintToChat(client, "{RED}Мертвецы не могут курить.{DEFAULT}");
+		return;
+	}	
 	
 	int credits = GetCredits(client);
 	SetEntityHealth(client, GetClientHealth(client) - 1);
 	credits = SetCredits(client, credits - 1);
 	
 	int random = GetRandomInt(1, 10);
-	if (random == 7)
+	if (random == 1)
 	{
 		char name[35];
 		GetClientName(client, name, 35);
@@ -528,7 +529,18 @@ public Action Smoke(int client, int args)
 		CGOPrintToChatAll("{RED}%s умер от рака лёгких!{DEFAULT}", name);
 	}
 	
-	CGOPrintToChat(client, "{GREEN}Вы скурили сигаретку.{DEFAULT}");
+	random = GetRandomInt(1, 500);
+	if (random == 1)
+	{
+		char name[35];
+		GetClientName(client, name, 35);
+		CGOPrintToChatAll("{GREEN}%s курил сигаретку и вдруг обнаружил в своем кармане еще тысячу.{DEFAULT}", name);
+		credits = SetCredits(client, credits + 1000);
+	}
+	else
+	{
+		CGOPrintToChat(client, "{GREEN}Вы скурили сигаретку.{DEFAULT}");
+	}	
 }
 
 public Action OpenShopMenu(int client, int args)
