@@ -45,6 +45,7 @@ public Action ASay(int client, int args)
 	GetClientName(client, name, 35);
 	
 	CGOPrintToChatAll("%s: {OLIVE}%s", name, message); 
+	LogMessage("%s triggered sm_z with text: %s", name, message);
 }
 
 public Action GetSteamID(int client, int args)
