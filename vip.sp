@@ -21,16 +21,14 @@ bool g_VipActive[MAXPLAYERS+1];
 
 int g_MaxHealth[MAXPLAYERS+1];
 int g_MaxHealthCanBeRegenerated[MAXPLAYERS+1];	
-int m_flLaggedMovementValue;
 int g_Iteration[MAXPLAYERS+1];
+
+int m_flLaggedMovementValue;
 
 float g_dSpeed;
 
 Handle g_VipReactivate[MAXPLAYERS+1];
-
-//-гравитация, +скорость, +100 хп, реген 5 хп/с, снять бунт, маскировка под кт
-//+скорость, -гравитация
-
+ArrayList g_VipUsers;
 
 public void OnPluginStart()
 {
@@ -45,9 +43,9 @@ public void OnPluginStart()
 	RegAdminCmd("sm_vip", CommandVIP, ADMFLAG_CUSTOM5, "Opens admin menu");
 	
 	HookEvent("player_spawn", Event_PlayerSpawn);
-	HookEvent("player_death", Event_PlayerDeath);
+	//HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("client_disconnect", Event_ClientDisconnect);
+	//HookEvent("client_disconnect", Event_ClientDisconnect);
 	
 	for (int i = 0; i <= MAXPLAYERS; ++i)
 	{
@@ -55,6 +53,7 @@ public void OnPluginStart()
 	}	
 	
 	CreateTimer(120.0, Rehash, 0, TIMER_REPEAT);
+	g_VipUsers = new ArrayList();
 }
 
 
@@ -64,7 +63,7 @@ public Action Rehash(Handle timer, int uselessInfo)
 	PrintToServer("VIP plugin has reloaded admin list");
 }
 
-public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
+/*public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
@@ -81,9 +80,81 @@ public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadc
 		char name[32];
 		GetClientName(client, name, 32);		
 	}	
+}*/
+
+public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int user = event.GetInt("userid");
+	
+	if (IsVip(client) && IsPlayerAlive(client))
+	{
+		g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue); //надо переместить этот код нахуй отсюда
+		CreateTimer(0.6, SetVipPassiveAbilities, client);
+		CreateTimer(1.0, FixVipPassiveAbilities, client, TIMER_REPEAT);
+
+		g_VipUsers.Push(user);
+	}
 }
 
-public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+public Action SetVipPassiveAbilities(Handle timer, int client)
+{
+	g_MaxHealth[client] = 100 + CalcRank(GetXP(client)) * 10;
+	SetEntityHealth(client, g_MaxHealth[client]);
+	SetEntityGravity(client, 0.85);
+	
+	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
+	
+	CS_SetClientClanTag(client, "[VIP]");
+	
+	if (GetClientTeam(client) == CS_TEAM_T) 
+	{
+		SetEntityModel(client, "models/player/custom/ekko/ekko.mdl");
+		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/jailbreak/prisoner3/prisoner3_arms.mdl");
+	}
+	else
+	{
+		SetEntityModel(client, "models/player/custom_player/kuristaja/nanosuit/nanosuitv3.mdl");
+		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/nanosuit/nanosuit_arms.mdl");
+	}
+}
+
+public Action FixVipPassiveAbilities(Handle timer, int client)
+{
+	if (IsClientInGame(client))
+	{
+		if (ContainsInt(g_VipUsers, GetClientUserId(client)))
+		{
+			if (IsPlayerAlive(client))
+			{
+				SetEntityGravity(client, 0.85);
+				SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
+				CS_SetClientClanTag(client, "[VIP]");
+			}
+			else
+			{
+				return Plugin_Stop;
+			}
+		}
+		else
+		{
+			SetEntityGravity(client, 1.0);
+			SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed, true);
+			CS_SetClientClanTag(client, "");
+			
+			g_VipUsers.Erase(FindIndex(g_VipUsers, GetClientUserId(client)));
+			return Plugin_Stop;
+		}
+	}
+	else
+	{
+		return Plugin_Stop;
+	}	
+	
+	return Plugin_Continue;
+}
+
+/*public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
@@ -91,24 +162,13 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 	{
 		KillTimer(g_VipReactivate[client]);
 	}
-}
+}*/
 
 public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MAXPLAYERS; ++i)
 	{
 		if (g_VipReactivate[i] != INVALID_HANDLE)
-		{
-			KillTimer(g_VipReactivate[i]);
-		}
-	}
-}
-
-public Action Event_ClientDisconnect(Event event, const char[] name, bool dontBroadcast)
-{
-	for (int i = 1; i <= MAXPLAYERS; ++i)
-	{
-		if (!IsVip(i) && g_VipReactivate[i] != INVALID_HANDLE)
 		{
 			KillTimer(g_VipReactivate[i]);
 		}
@@ -125,7 +185,7 @@ public Action CommandVIP(int client, int args)
 			menu.SetTitle("VIP-меню");
 			
 			menu.AddItem("heal", "Лечение (+100 HP)");
-			menu.AddItem("regen", "Регенерация (15 HP/с)");
+			menu.AddItem("regen", "Регенерация (10 HP/с)");
 			menu.AddItem("gravity", "Гравитация (10 секунд)");
 			menu.AddItem("speed", "Скорость (10 секунд)");			
 			menu.AddItem("armor", "Броня (+100 брони)");
@@ -426,7 +486,33 @@ int CalcRank(int xp)
 	return 1;
 }
 
-public Action SetVipFeatures(Handle timer, int client)
+bool ContainsInt(ArrayList array, int value)
+{
+	for (int i = 0; i < array.Length; ++i)
+	{
+		if (array.Get(i) == value)
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+int FindIndex(ArrayList array, int value)
+{
+	for (int i = 0; i < array.Length; ++i)
+	{
+		if (array.Get(i) == value)
+		{
+			return i;
+		}
+	}
+	
+	return -1;
+}
+
+/*public Action SetVipFeatures(Handle timer, int client)
 {
 	if (!g_VipActive[client])
 	{
@@ -468,7 +554,7 @@ public void SetVipFeaturesRepeatingFunc(int client)
 {
 	SetEntityGravity(client, 0.85);
 	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
-}
+}*/
 
 public Action DisableVipGravity(Handle timer, int client)
 {
