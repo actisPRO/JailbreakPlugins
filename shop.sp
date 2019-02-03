@@ -186,7 +186,7 @@ void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 		}
 	}
 	
-	if (g_Timer != null)
+	if (g_Timer != INVALID_HANDLE)
 	{
 		KillTimer(g_Timer);
 		g_Timer = null;
