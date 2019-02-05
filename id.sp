@@ -23,6 +23,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_n", GetMyId);
 	RegConsoleCmd("sm_id", GetInfo);
 	
+	
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath);
