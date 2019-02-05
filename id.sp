@@ -283,12 +283,7 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		DBResultSet query = SQL_Query(db, buffer);
 		if (query == null)
 	   	{
-			Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
-			if (!SQL_FastQuery(db, buffer))
-			{
-				SQL_GetError(db, error, sizeof(error));
-				PrintToServer("Failed to query (error: %s)", error);
-			}
+			/* здесь был ненужный код, а теперь его нет. вообще, надо поставить обработчик ошибок, но... зачем? */
 	   	}
 		else 
 		{
@@ -366,6 +361,8 @@ int CalcRank(int xp)
 	{
 		return 12;
 	}
+	
+	return 1;
 }
 
 void SetXp(int client, int xp)
@@ -543,106 +540,6 @@ char[] GetAdminRank(int client)
 	}
 
 	char res[64] = "Игрок";
-	return res;
-}
-
-char[] GetAdminRankDeprecated(int client)
-{
-	char error[255];
-	Database db = SQL_DefConnect(error, sizeof(error));
-		    
-	if (db == null)
-	{
-	  	PrintToServer("Could not connect: %s", error);
-	}
-	else 
-	{		
-		char steamid[64];
-		GetClientAuthId(client, AuthId_Steam2, steamid, 64);
-	
-		char buffer[255];
-		Format(buffer, 255, "SELECT `id` FROM `sm_admins` WHERE `identity` = '%s';", steamid);
-		DBResultSet query = SQL_Query(db, buffer);
-		
-		if (query == null)
-		{
-			PrintToServer("SQL Query errored (GetAdminStatus(%d), checking if player is admin.)", client);
-		}
-		else
-		{
-			if (SQL_GetRowCount(query) == 0)
-			{
-				char res[64] = "Игрок";
-				return res;
-			}
-			else
-			{
-				int adminid;
-				while (SQL_FetchRow(query))
-				{					
-					adminid = SQL_FetchInt(query, 0);
-				}
-				Format(buffer, 255, "SELECT `group_id` FROM `sm_admins_groups` WHERE `admin_id` = '%d';", adminid);
-				DBResultSet query2 = SQL_Query(db, buffer);
-				if (query2 == null)
-				{
-					PrintToServer("SQL Query errored (GetAdminStatus(%d), getting group id.)", client);
-				}
-				else
-				{
-					int gid;
-					while (SQL_FetchRow(query2))
-					{					
-						gid = SQL_FetchInt(query2, 0);
-					}
-					Format(buffer, 255, "SELECT `name` FROM `sm_groups` WHERE `id` = '%d';", gid);
-					DBResultSet query3 = SQL_Query(db, buffer);
-					if (query3 == null)
-					{
-						PrintToServer("SQL Query errored (GetAdminStatus(%d), getting group.)", client);
-					}
-					else
-					{
-						char roleName[64];
-						while (SQL_FetchRow(query3))
-						{
-							SQL_FetchString(query3, 0, roleName, 64);
-						}
-						
-						if (StrEqual(roleName, "Root"))
-						{
-							char res[64] = "Главный администратор";
-							return res;
-						}
-						else if (StrEqual(roleName, "Superadmin"))
-						{
-							char res[64] = "Суперадминистратор";
-							return res;
-						}
-						else if (StrEqual(roleName, "Admin"))
-						{
-							char res[64] =  "Администратор";
-							return res;
-						}
-						else if (StrEqual(roleName, "Helper"))
-						{
-							char res[64] = "Хэлпер";
-							return res;
-						}
-						else
-						{
-							char res[64] =  "Игрок";
-							return res;
-						}
-					}
-				}				
-			}
-			
-			delete query;
-		}		
-	}
-	
-	char res[64] = "-1";
 	return res;
 }
 
