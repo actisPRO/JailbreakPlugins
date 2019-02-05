@@ -129,7 +129,7 @@ public Action FixVipPassiveAbilities(Handle timer, int client)
 		{
 			if (IsPlayerAlive(client))
 			{
-				if (g_VipActive[client])
+				if (!g_VipActive[client])
 				{					
 					SetEntityGravity(client, 0.85);
 					SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
