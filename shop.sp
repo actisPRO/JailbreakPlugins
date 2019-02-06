@@ -31,6 +31,12 @@ ConVar g_roundEndMoney;
 ConVar g_roundWinMoney;
 ConVar g_killCtMoney;
 ConVar g_killRebelMoney;
+ConVar g_priceRoulette;
+ConVar g_priceHealthCT;
+ConVar g_priceAntiterror;
+ConVar g_roundEndTokens;
+ConVar g_roundWinTokens;
+ConVar g_killRebelTokens;
 
 int g_ShopUsed[MAXPLAYERS+1];
 bool g_RouletteUsed[MAXPLAYERS+1];
@@ -45,17 +51,29 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_balance", CheckBalance);
 	RegConsoleCmd("sm_transfer", Transfer);
 	
-	g_priceSmoke = CreateConVar("jbs_price_smoke", "50", "Sets smoke price");
-	g_priceFlash = CreateConVar("jbs_price_flashbang", "100", "Sets flashbang price");
-	g_priceHealth = CreateConVar("jbs_price_healthshot", "150", "Sets healthshot price");
-	g_priceArmor = CreateConVar("jbs_price_armor", "200", "Sets armor price");
-	g_priceDeagle = CreateConVar("jbs_price_deagle", "500", "Sets deagle price");
-	g_priceProtein = CreateConVar("jbs_price_protein", "1500", "Sets protein price");
+	g_priceSmoke = CreateConVar("jbs_price_smoke", "200", "Sets smoke price");
+	g_priceFlash = CreateConVar("jbs_price_flashbang", "150", "Sets flashbang price");
+	g_priceHealth = CreateConVar("jbs_price_healthshot", "5", "Sets healthshot price");
+	g_priceArmor = CreateConVar("jbs_price_armor", "100", "Sets armor price");
+	g_priceDeagle = CreateConVar("jbs_price_deagle", "120", "Sets deagle price");
+	g_priceProtein = CreateConVar("jbs_price_protein", "500", "Sets protein price");
+	g_priceRoulette = CreateConVar("jbs_price_roulette", "15", "Sets roulette price");
+	
+	g_priceHealthCT = CreateConVar("jbs_price_healthshot_ct", "1", "Sets healthshot price for CT team");
+	g_priceAntiterror = CreateConVar("jbs_price_antiterror", "120", "Sets Anti-Terror pack price");	
+	
 	g_startMoney = CreateConVar("jbs_start_money", "300", "Player receives this amount of money, when he joins the server first time");
-	g_roundEndMoney = CreateConVar("jbs_round_end_money", "5", "Each (dead, alive, ct, t, but not spectators) receives this amount of money, when round ends");
-	g_roundWinMoney = CreateConVar("jbs_round_win_money", "5", "Each alive member of winner team gets this amount of money");
-	g_killCtMoney = CreateConVar("jbs_kill_ct_money", "1", "CT killer gets this amount of money");
-	g_killRebelMoney = CreateConVar("jbs_kill_rebel_money", "1", "Rebel killer gets this amount of money");	
+	
+	g_roundEndMoney = CreateConVar("jbs_round_end_money", "5", "Each (dead, alive, ts, but not spectators and cts) player receives this amount of money, when round ends");
+	g_roundWinMoney = CreateConVar("jbs_round_win_money", "5", "Each alive member of winner team (T only) gets this amount of money");
+	
+	g_roundEndTokens = CreateConVar("jbs_round_end_tokens", "1", "Each dead or alive CT gets this amount of tokens");
+	g_roundWinTokens = CreateConVar("jbs_round_win_tokens", "1", "Each alive CT gets this amount of money if his team wins a round");
+	
+	g_killCtMoney = CreateConVar("jbs_kill_ct_money", "2", "CT killer gets this amount of money");
+	g_killRebelMoney = CreateConVar("jbs_kill_rebel_money", "1", "DEPRECATED Rebel killer gets this amount of money");	
+	
+	g_killRebelTokens = CreateConVar("jbs_kill_rebel_tokens", "1", "Rebel killer gets this amount of tokens");
 	
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
@@ -182,17 +200,18 @@ public Action OpenShopMenu(int client, int args)
 {
 	if (IsPlayerAlive(client)) 
 	{
-		if (GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT)
+		if (GetClientTeam(client) == CS_TEAM_T) //черный рынок
 		{
 			int credits = Shop_GetCredits(client);
 			
 			Menu menu = new Menu(ShopMenuHandler, MENU_ACTIONS_ALL);
 			
 			char title[255];
-			Format(title, 255, "Чёрный рынок | Баланс: %d", credits);
+			Format(title, 255, "Чёрный рынок | Баланс: %d сигарет", credits);
 			menu.SetTitle(title);
 			
-			char buffer[255];			
+			char buffer[255];
+			menu.AddItem("buy", "Купить сигареты");
 			Format(buffer, 255, "Аптечка (%d сигарет)", g_priceHealth.IntValue);
 			menu.AddItem("healthshot", buffer);			
 			Format(buffer, 255, "Броня (%d сигарет)", g_priceArmor.IntValue);
@@ -205,22 +224,45 @@ public Action OpenShopMenu(int client, int args)
 			menu.AddItem("smoke", buffer);
 			Format(buffer, 255, "Протеин (%d сигарет)", g_priceProtein.IntValue);
 			menu.AddItem("protein", buffer);
-			
-			if (GetClientTeam(client) == CS_TEAM_T)
-			{
-				menu.AddItem("roulette", "Рулетка (15 сигарет)");
-			}			
+			Format(buffer, 255, "Рулетка (%d сигарет)", g_priceRoulette.IntValue);
+			menu.AddItem("roulette", buffer);			
 		
 			menu.Display(client, MENU_TIME_FOREVER);					
 		}
-		else
+		else if (GetClientTeam(client) == CS_TEAM_CT) //арсенал
 		{
+			int tokens = Shop_GetTokens(client);
+			
+			Menu menu = new Menu(CTShopMenuHandler, MENU_ACTIONS_ALL);
+			
+			char title[255];
+			Format(title, 255, "Арсенал | Баланс: %d жетонов", tokens);
+			menu.SetTitle(title);
+			
+			char buffer[255];
+			menu.AddItem("buy", "Купить жетоны"); 
+			Format(buffer, 255, "Аптечка (%d жетонов)", g_priceHealthCT.IntValue);
+			menu.AddItem("healthshot", buffer);
+			Format(buffer, 255, "Антитеррор (%d жетонов)", g_priceAntiterror.IntValue);
+			menu.AddItem("antiterror", buffer);
+		
+			menu.Display(client, MENU_TIME_FOREVER);
+		}
+		else
+		{			
 			CGOPrintToChat(client, "{GREEN}[Чёрный рынок]{DEFAULT} Магазин доступен только игрокам.");
 		}
 	}
 	else
 	{
-		CGOPrintToChat(client, "{GREEN}[Чёрный рынок]{DEFAULT} Вы должны быть живы, чтобы воспользоваться услугами черного рынка.");
+		if (GetClientTeam(client) == CS_TEAM_T)
+		{			
+			CGOPrintToChat(client, "{GREEN}[Чёрный рынок]{DEFAULT} Вы должны быть живы, чтобы воспользоваться услугами чёрного рынка.");
+		}
+		else if (GetClientTeam(client) == CS_TEAM_CT)
+		{
+			CGOPrintToChat(client, "{GREEN}[Арсенал]{DEFAULT} Вы должны быть живы, чтобы воспользоваться арсеналом.");
+		}
 	}
 	
 	return Plugin_Handled;
@@ -323,10 +365,9 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 	   		if (SQL_GetRowCount(query) == 0)
 			{
 				char buffer[255];
-				Format(buffer, 255, "INSERT INTO `jbs_accounts` (`steamid`, `balance`) VALUES ('%s', '%d');", steamid, g_startMoney.IntValue);
+				Format(buffer, 255, "INSERT INTO `jbs_accounts` (`steamid`, `balance`, `tokens`) VALUES ('%s', '%d', '0');", steamid, g_startMoney.IntValue);
 				if (!SQL_FastQuery(db, buffer))
 				{
-					char error[255];
 					SQL_GetError(db, error, sizeof(error));
 					PrintToServer("Failed to query (error: %s)", error);
 				}
@@ -483,7 +524,6 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					else if (StrEqual(info, "roulette"))
 					{
 						Roulette(param1);
-						WriteShopUsed(param1);
 						credits = Shop_SetCredits(param1, credits - 15);
 						OpenShopMenu(param1, 0);
 					}
@@ -499,6 +539,81 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 		}		
 	}
+	
+	return 0;
+}
+
+public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	
+}
+
+int Shop_GetTokens(int client)
+{
+	int tokens;
+	
+	char error[255];
+	Database db = SQL_DefConnect(error, sizeof(error));
+		    
+	if (db == null)
+	{
+	  	PrintToServer("Could not connect: %s", error);
+	} 
+	else 
+	{
+	   	char steamid[64];
+	   	GetClientAuthId(client, AuthId_SteamID64, steamid, 64);
+	    	
+	   	char query_text[512]; 
+	   	Format(query_text, 512, "SELECT `tokens` FROM `jbs_accounts` WHERE `steamid` = '%s'", steamid);
+	   	DBResultSet query = SQL_Query(db, query_text);
+		    	
+	   	if (query == null)
+	   	{
+	   		tokens = 0;
+	   	} 
+	   	else 
+	   	{
+	   		while (SQL_FetchRow(query))
+	  		{						
+	   			tokens = SQL_FetchInt(query, 0);
+	   		} 
+	   		
+	   		delete query;
+	   	}	
+		delete db;
+	}
+	
+	return tokens;
+}
+
+int Shop_SetTokens(int client, int amount)
+{
+	char error[255];
+	Database db = SQL_DefConnect(error, sizeof(error));
+		    
+	if (db == null)
+	{
+	  	PrintToServer("Could not connect: %s", error);
+	} 
+	else 
+	{
+	   	char steamid[64];
+	   	GetClientAuthId(client, AuthId_SteamID64, steamid, 64);
+	    	
+	   	char query_text[512]; 
+	   	Format(query_text, 512, "UPDATE `jbs_accounts` SET `tokens` = '%d' WHERE `jbs_accounts`.`steamid` = '%s';", amount, steamid);
+		
+	   	if (!SQL_FastQuery(db, query_text))
+		{
+			char error[255];
+			SQL_GetError(db, error, sizeof(error));
+			PrintToServer("Failed to query (error: %s)", error);
+		}
+		delete db;
+	}
+	
+	return amount;
 }
 
 int Shop_GetCredits(int client)
@@ -559,7 +674,6 @@ int Shop_SetCredits(int client, int amount)
 		
 	   	if (!SQL_FastQuery(db, query_text))
 		{
-			char error[255];
 			SQL_GetError(db, error, sizeof(error));
 			PrintToServer("Failed to query (error: %s)", error);
 		}
