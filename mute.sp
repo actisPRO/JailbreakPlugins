@@ -18,7 +18,7 @@ Handle g_Timer;
 
 public void OnPluginStart()
 {
-	HookEvent("round_start", Event_RoundStart);
+	HookEvent("round_freeze_end", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath);
 }
