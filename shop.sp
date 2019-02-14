@@ -296,7 +296,7 @@ void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 		}
 		else if (GetClientTeam(killer) == CS_TEAM_CT && IsClientRebel(killed))
 		{
-			Shop_SetTokens(killer, Shop_GetCredits(killer) + g_killRebelTokens.IntValue);
+			Shop_SetTokens(killer, Shop_GetTokens(killer) + g_killRebelTokens.IntValue);
 			char buffer[255];
 			Format(buffer, 255, "{GREEN}[Арсенал]{DEFAULT} Вы получаете %d жетон за убийство бунтующего заключенного!", g_killRebelTokens.IntValue);
 			CGOPrintToChat(killer, buffer);
