@@ -3,6 +3,7 @@
 #include <admin>
 #include <cstrike>
 #include <sdktools>
+#include <sdkhooks>
 #include <csgo_colors>
 
 #pragma semicolon 1
@@ -119,6 +120,14 @@ public Action SetVipPassiveAbilities(Handle timer, int client)
 		SetEntityModel(client, "models/player/custom_player/kuristaja/nanosuit/nanosuitv3.mdl");
 		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/nanosuit/nanosuit_arms.mdl");
 	}
+	
+	int weapon;
+	if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_KNIFE)) != -1)
+	{
+		SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+		AcceptEntityInput(weapon, "Kill");
+	}
+	GivePlayerItem(client, "weapon_knifegg"); //why not?
 }
 
 public Action FixVipPassiveAbilities(Handle timer, int client)
