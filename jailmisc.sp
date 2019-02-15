@@ -12,7 +12,7 @@ public Plugin myinfo = {
 	name        = "JailBreak Misc",
 	author      = "Actis",
 	description = "",
-	version     = "1.0.0",
+	version     = "1.1.0",
 	url         = "CS-JB.RU"
 };
 
@@ -23,20 +23,32 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_steamid", GetSteamID);
 	RegConsoleCmd("sm_site", ShowSite);
 	RegConsoleCmd("sm_rules", ShowRules);
-	RegAdminCmd("sm_z", ASay, ADMFLAG_GENERIC, "");
+	RegAdminCmd("sm_z", ZSay, ADMFLAG_GENERIC, "");
 }
 
 public Action ShowSite(int client, int args)
 {
 	CGOPrintToChatAll("Наш сайт: {GREEN}cs-jb.ru{DEFAULT}");
+	
+	char name[35];
+	GetClientName(client, name, 35);
+	
+	LogMessage("%s triggered sm_site", name);
+	return Plugin_Handled;
 }
 
 public Action ShowRules(int client, int args)
 {
 	CGOPrintToChatAll("Актуальные правила всегда можно прочитать на сайте: {GREEN}cs-jb.ru/rules{DEFAULT}");
+	
+	char name[35];
+	GetClientName(client, name, 35);
+	
+	LogMessage("%s triggered sm_rules", name);
+	return Plugin_Handled;
 }
 
-public Action ASay(int client, int args)
+public Action ZSay(int client, int args)
 {
 	char message[192];
 	GetCmdArgString(message, 192);
@@ -46,6 +58,7 @@ public Action ASay(int client, int args)
 	
 	CGOPrintToChatAll("%s: {OLIVE}%s", name, message); 
 	LogMessage("%s triggered sm_z with text: %s", name, message);
+	return Plugin_Handled;
 }
 
 public Action GetSteamID(int client, int args)
@@ -57,11 +70,19 @@ public Action GetSteamID(int client, int args)
 	GetClientName(client, name, 35);
 	
 	CGOPrintToChatAll("{GREEN}SteamID игрока %s:{DEFAULT} %s", name, steamid);
+	
+	LogMessage("%s triggered sm_steamid", name);
+	return Plugin_Handled;
 }
 
 public Action KillYourself(int client, int args)
 {
 	ForcePlayerSuicide(client);
+	
+	char name[35];
+	GetClientName(client, name, 35);
+	
+	LogMessage("%s triggered sm_kill", name);
 	return Plugin_Handled;
 }
 
@@ -71,4 +92,10 @@ public Action SwitchSide(int client, int args)
 	{
 		ChangeClientTeam(client, CS_TEAM_T);		
 	}
+	
+	char name[35];
+	GetClientName(client, name, 35);
+	
+	LogMessage("%s triggered sm_t", name);
+	return Plugin_Handled;
 }
