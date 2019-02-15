@@ -5,6 +5,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <csgo_colors>
+#include <id>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -13,7 +14,7 @@ public Plugin myinfo = {
 	name        = "VIP",
 	author      = "Actis",
 	description = "",
-	version     = "1.0.0",
+	version     = "1.1.0",
 	url         = "CS-JB.RU"
 };
 
@@ -35,18 +36,10 @@ public void OnPluginStart()
 {
 	m_flLaggedMovementValue = FindSendPropOffs("CCSPlayer", "m_flLaggedMovementValue");
 	
-	/*RegAdminCmd("vip_gravity", CommandVIPGravity, ADMFLAG_CUSTOM5, "Decreases VIP gravity");
-	RegAdminCmd("vip_speed", CommandVIPSpeed, ADMFLAG_CUSTOM5, "Increases VIP speed");
-	RegAdminCmd("vip_heal", CommandVIPHeal, ADMFLAG_CUSTOM5, "Adds 100 HP to VIP");
-	RegAdminCmd("vip_regen", CommandVIPRegenerate, ADMFLAG_CUSTOM5, "Regenerates VIP HP");
-	RegAdminCmd("vip_unrebel", CommandVIPUnrebel, ADMFLAG_CUSTOM5, "Stop beeing rebel");
-	RegAdminCmd("vip_fakect", CommandVIPFakect, ADMFLAG_CUSTOM5, "Set's CT VIP skin to T");*/
 	RegAdminCmd("sm_vip", CommandVIP, ADMFLAG_CUSTOM5, "Opens admin menu");
 	
 	HookEvent("player_spawn", Event_PlayerSpawn);
-	//HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_end", Event_RoundEnd);
-	//HookEvent("client_disconnect", Event_ClientDisconnect);
 	
 	for (int i = 0; i <= MAXPLAYERS; ++i)
 	{
@@ -57,31 +50,11 @@ public void OnPluginStart()
 	g_VipUsers = new ArrayList();
 }
 
-
 public Action Rehash(Handle timer, int uselessInfo)
 {
 	ServerCommand("sm_rehash");
 	LogMessage("VIP plugin has reloaded admin list");
 }
-
-/*public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	
-	g_VipUsed[client] = false;	
-	
-	if (IsVip(client) && IsPlayerAlive(client))
-	{
-		g_dSpeed = GetEntDataFloat(client, m_flLaggedMovementValue);
-	
-		CreateTimer(0.6, SetVipFeatures, client);
-		g_VipReactivate[client] = CreateTimer(1.0, SetVipFeaturesRepeating, client, TIMER_REPEAT);
-		
-		PrintToServer("VIP spawned");
-		char name[32];
-		GetClientName(client, name, 32);		
-	}	
-}*/
 
 public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadcast)
 {
@@ -102,7 +75,7 @@ public Action Event_PlayerSpawn(Event event, const char[] eName, bool dontBroadc
 
 public Action SetVipPassiveAbilities(Handle timer, int client)
 {
-	g_MaxHealth[client] = 100 + CalcRank(GetXP(client)) * 10;
+	g_MaxHealth[client] = 100 + Id_CalcRank(Id_GetXP(client)) * 10;
 	SetEntityHealth(client, g_MaxHealth[client]);
 	SetEntityGravity(client, 0.85);
 	
@@ -167,16 +140,6 @@ public Action FixVipPassiveAbilities(Handle timer, int client)
 	
 	return Plugin_Continue;
 }
-
-/*public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	
-	if (g_VipReactivate[client] != INVALID_HANDLE)
-	{
-		KillTimer(g_VipReactivate[client]);
-	}
-}*/
 
 public Action Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
@@ -367,7 +330,7 @@ bool IsVip(int client)
 		
 		if (query == null)
 		{
-			PrintToServer("SQL Query errored (GetXP(%d))", client);
+			PrintToServer("SQL Query errored (Id_GetXP(%d))", client);
 		}
 		else
 		{
@@ -390,7 +353,7 @@ bool IsVip(int client)
 		
 		if (query == null)
 		{
-			PrintToServer("SQL Query errored (GetXP(%d))", client);
+			PrintToServer("SQL Query errored (Id_GetXP(%d))", client);
 		}
 		else
 		{
@@ -415,96 +378,6 @@ bool IsVip(int client)
 	}
 	
 	return false;
-}
-
-int GetXP(int client)
-{
-	char error[255];
-	Database db = SQL_DefConnect(error, sizeof(error));
-		    
-	if (db == null)
-	{
-	  	PrintToServer("Could not connect: %s", error);
-	}
-	else 
-	{		
-		char steamid64[64];
-		GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
-	
-		char buffer[255];
-		Format(buffer, 255, "SELECT `xp` FROM `id_accounts` WHERE `steamid64` = '%s'", steamid64);
-		DBResultSet query = SQL_Query(db, buffer);
-		
-		if (query == null)
-		{
-			PrintToServer("SQL Query errored (GetXP(%d))", client);
-		}
-		else
-		{
-			while (SQL_FetchRow(query))
-			{
-				return SQL_FetchInt(query, 0);
-			}
-			
-			delete query;
-		}		
-	}
-	
-	return -1;
-}
-
-int CalcRank(int xp)
-{
-	if (xp < 30)
-	{
-		return 1;
-	}
-	else if (xp >= 30 && xp < 90)
-	{
-		return 2;
-	}
-	else if (xp >= 90 && xp < 180)
-	{
-		return 3;
-	}
-	else if (xp >= 180 && xp < 450)
-	{
-		return 4;
-	}
-	else if (xp >= 450 && xp < 600)
-	{
-		return 5;
-	}
-	else if (xp >= 600 && xp < 1500)
-	{
-		return 6;
-	}
-	else if (xp >= 1500 && xp < 6700)
-	{
-		return 7;
-	}
-	else if (xp >= 6700 && xp < 11000)
-	{
-		return 8;
-	}
-	else if (xp >= 11000 && xp < 34000)
-	{
-		return 9;
-	}
-	else if (xp >= 89000 && xp < 89000)
-	{
-		return 10;
-	}
-	else if (xp >= 89000 && xp < 330000)
-	{
-		return 11;
-	}	
-	else if (xp >= 330000)
-	{
-		return 12;
-	}
-	
-	return 1;
 }
 
 bool ContainsInt(ArrayList array, int value)
@@ -532,50 +405,6 @@ int FindIndex(ArrayList array, int value)
 	
 	return -1;
 }
-
-/*public Action SetVipFeatures(Handle timer, int client)
-{
-	if (!g_VipActive[client])
-	{
-		SetVipFeaturesFunc(client);		
-	}
-}
-
-public Action SetVipFeaturesRepeating(Handle timer, int client)
-{
-	if (!g_VipActive[client] && IsValidEntity(client))
-	{
-		SetVipFeaturesRepeatingFunc(client);		
-	}
-}
-
-public void SetVipFeaturesFunc(int client)
-{
-	g_MaxHealth[client] = 100 + CalcRank(GetXP(client)) * 10;
-	SetEntityHealth(client, g_MaxHealth[client]);
-	SetEntityGravity(client, 0.85);
-	
-	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
-	
-	CS_SetClientClanTag(client, "[VIP]");
-	
-	if (GetClientTeam(client) == CS_TEAM_T) 
-	{
-		SetEntityModel(client, "models/player/custom/ekko/ekko.mdl");
-		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/jailbreak/prisoner3/prisoner3_arms.mdl");
-	}
-	else
-	{
-		SetEntityModel(client, "models/player/custom_player/kuristaja/nanosuit/nanosuitv3.mdl");
-		SetEntPropString(client, Prop_Send, "m_szArmsModel", "models/player/custom_player/kuristaja/nanosuit/nanosuit_arms.mdl");
-	}
-}
-
-public void SetVipFeaturesRepeatingFunc(int client)
-{
-	SetEntityGravity(client, 0.85);
-	SetEntDataFloat(client, m_flLaggedMovementValue, g_dSpeed * 1.05, true);
-}*/
 
 public Action DisableVipGravity(Handle timer, int client)
 {
