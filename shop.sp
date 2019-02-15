@@ -21,6 +21,8 @@ public Plugin myinfo = {
 	url         = "CS-JB.RU"
 };
 
+/* КОНВАРЫ */
+
 ConVar g_priceSmoke;
 ConVar g_priceFlash;
 ConVar g_priceHealth;
@@ -42,10 +44,13 @@ ConVar g_roundWinTokens;
 ConVar g_roundWinWardenTokens;
 ConVar g_killRebelTokens;
 
-int g_ShopUsed[MAXPLAYERS+1];
-bool g_RouletteUsed[MAXPLAYERS+1];
-Handle g_Timer;
-bool g_ShopAvaliable;
+/* ГЛОБАЛЬНЫЕ ПЕРМЕННЫЕ */ 
+int g_ShopUsed[MAXPLAYERS+1]; // сколько раз пользователь использовал магазин
+bool g_RouletteUsed[MAXPLAYERS+1]; // использовал ли пользователь рулетку
+Handle g_Timer; // таймер для блокировки магазина
+bool g_ShopAvaliable; // доступен ли магазин
+
+/* ФОРВАРДЫ */
 
 public void OnPluginStart()
 {
@@ -89,10 +94,51 @@ public void OnPluginStart()
 	AutoExecConfig(true, "jail_shop");
 }
 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	CreateNative("Shop_GetTokens", Native_GetTokens);
+	CreateNative("Shop_SetTokens", Native_SetTokens);
+	CreateNative("Shop_GetCredits", Native_GetCredits);
+	CreateNative("Shop_SetCredits", Native_SetCredits);
+	return APLRes_Success;
+}
+
+/* НАТИВЫ */
+
+public int Native_GetTokens(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	return GetTokens(client);
+}
+
+public int Native_SetTokens(Handle plugin, int numParams)
+{
+	int client, newValue;
+	client = GetNativeCell(1);
+	newValue = GetNativeCell(2);
+	return SetTokens(client, newValue);
+}
+
+public int Native_GetCredits(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	return GetCredits(client);
+}
+
+public int Native_SetCredits(Handle plugin, int numParams)
+{
+	int client, newValue;
+	client = GetNativeCell(1);
+	newValue = GetNativeCell(2);
+	return SetCredits(client, newValue);
+}
+
+/* ХУКИ ДЛЯ КОМАНД */
+
 public Action CheckBalance(int client, int args)
 {
 	char buffer[255];
-	Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} Ваши сигареты: {GREEN}%d{DEFAULT}.", Shop_GetCredits(client));
+	Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} Ваши сигареты: {GREEN}%d{DEFAULT}.", GetCredits(client));
 	CGOPrintToChat(client, buffer);
 	
 	return Plugin_Handled;
@@ -139,7 +185,7 @@ public Action Transfer(int client, int args)
 	GetCmdArg(2, amount, sizeof(amount));
 	
 	int cash = StringToInt(amount);
-	int credits = Shop_GetCredits(client);
+	int credits = GetCredits(client);
 	if (cash > credits)
 	{
 		CGOPrintToChat(client, "{RED}[ERROR]{DEFAULT} Количество передаваемых сигарет превышает их количество у вас.");
@@ -152,8 +198,8 @@ public Action Transfer(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	Shop_SetCredits(client, credits - cash);
-	Shop_SetCredits(target, Shop_GetCredits(target) + cash);
+	SetCredits(client, credits - cash);
+	SetCredits(target, GetCredits(target) + cash);
 	
 	char buffer[255];
 	Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} Успешно передано %d сигарет игроку %s.", cash, name);
@@ -175,9 +221,9 @@ public Action Smoke(int client, int args)
 		return;
 	}	
 	
-	int credits = Shop_GetCredits(client);
+	int credits = GetCredits(client);
 	SetEntityHealth(client, GetClientHealth(client) - 1);
-	credits = Shop_SetCredits(client, credits - 1);
+	credits = SetCredits(client, credits - 1);
 	
 	int random = GetRandomInt(1, 10);
 	if (random == 1)
@@ -194,7 +240,7 @@ public Action Smoke(int client, int args)
 		char name[35];
 		GetClientName(client, name, 35);
 		CGOPrintToChatAll("{GREEN}%s курил сигаретку и вдруг обнаружил в своем кармане еще тысячу.{DEFAULT}", name);
-		credits = Shop_SetCredits(client, credits + 1000);
+		credits = SetCredits(client, credits + 1000);
 	}
 	else
 	{
@@ -208,7 +254,7 @@ public Action OpenShopMenu(int client, int args)
 	{
 		if (GetClientTeam(client) == CS_TEAM_T) //черный рынок
 		{
-			int credits = Shop_GetCredits(client);
+			int credits = GetCredits(client);
 			
 			Menu menu = new Menu(ShopMenuHandler, MENU_ACTIONS_ALL);
 			
@@ -237,7 +283,7 @@ public Action OpenShopMenu(int client, int args)
 		}
 		else if (GetClientTeam(client) == CS_TEAM_CT) //арсенал
 		{
-			int tokens = Shop_GetTokens(client);
+			int tokens = GetTokens(client);
 			
 			Menu menu = new Menu(CTShopMenuHandler, MENU_ACTIONS_ALL);
 			
@@ -280,6 +326,8 @@ public Action OpenShopMenu(int client, int args)
 	return Plugin_Handled;
 }
 
+/* СОБЫТИЯ */
+
 void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {	
 	int killer = GetClientOfUserId(event.GetInt("attacker"));
@@ -289,14 +337,14 @@ void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 	{
 		if (GetClientTeam(killer) == CS_TEAM_T && GetClientTeam(killed) == CS_TEAM_CT)
 		{			
-			Shop_SetCredits(killer, Shop_GetCredits(killer) + g_killCtMoney.IntValue);
+			SetCredits(killer, GetCredits(killer) + g_killCtMoney.IntValue);
 			char buffer[255];
 			Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} Вы получаете %d сигарету за убийство КТ!", g_killCtMoney.IntValue);
 			CGOPrintToChat(killer, buffer);								
 		}
 		else if (GetClientTeam(killer) == CS_TEAM_CT && IsClientRebel(killed))
 		{
-			Shop_SetTokens(killer, Shop_GetTokens(killer) + g_killRebelTokens.IntValue);
+			SetTokens(killer, GetTokens	(killer) + g_killRebelTokens.IntValue);
 			char buffer[255];
 			Format(buffer, 255, "{GREEN}[Арсенал]{DEFAULT} Вы получаете %d жетон за убийство бунтующего заключенного!", g_killRebelTokens.IntValue);
 			CGOPrintToChat(killer, buffer);
@@ -314,14 +362,14 @@ void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 			{
 				if (GetClientTeam(i) == CS_TEAM_T)
 				{					
-					Shop_SetCredits(i, Shop_GetCredits(i) + g_roundEndMoney.IntValue);
+					SetCredits(i, GetCredits(i) + g_roundEndMoney.IntValue);
 					char buffer[255];
 					Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} Вы получаете %d сигарет за окончание раунда.", g_roundEndMoney.IntValue);
 					CGOPrintToChat(i, buffer);
 				}
 				else 
 				{
-					Shop_SetTokens(i, Shop_GetTokens(i) + g_roundEndTokens.IntValue);
+					SetTokens(i, GetTokens(i) + g_roundEndTokens.IntValue);
 					char buffer[255];
 					Format(buffer, 255, "{GREEN}[Арсенал]{DEFAULT} Вы получаете %d жетон за окончание раунда.", g_roundEndTokens.IntValue);
 					CGOPrintToChat(i, buffer);
@@ -332,20 +380,20 @@ void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 			{
 				if (GetClientTeam(i) == CS_TEAM_T)
 				{					
-					Shop_SetCredits(i, Shop_GetCredits(i) + g_roundWinMoney.IntValue);
+					SetCredits(i, GetCredits(i) + g_roundWinMoney.IntValue);
 					char buffer[255];
 					Format(buffer, 255, "{GREEN}[Чёрный рынок]{DEFAULT} И дополнительно %d сигарет за победу!", g_roundWinMoney.IntValue);
 					CGOPrintToChat(i, buffer);
 				}
 				else 
 				{
-					Shop_SetTokens(i, Shop_GetTokens(i) + g_roundWinTokens.IntValue);
+					SetTokens(i, GetTokens(i) + g_roundWinTokens.IntValue);
 					char buffer[255];
 					Format(buffer, 255, "{GREEN}[Арсенал]{DEFAULT} И дополнительно %d жетон за победу!", g_roundWinTokens.IntValue);
 					CGOPrintToChat(i, buffer);
 					if (JWP_IsWarden(i))
 					{
-						Shop_SetTokens(i, Shop_GetTokens(i) + g_roundWinWardenTokens.IntValue);
+						SetTokens(i, GetTokens(i) + g_roundWinWardenTokens.IntValue);
 					}
 				}
 			}
@@ -417,14 +465,16 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
-public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2) 
+/* ХЭНДЛЕРЫ МЕНЮ */
+
+int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2) 
 {		
 	int credits;
 	switch (action)
 	{
 		case MenuAction_DrawItem:
 		{
-			credits = Shop_GetCredits(param1);
+			credits = GetCredits(param1);
 			
 			int style;
 			char info[32];
@@ -511,7 +561,7 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 		
 		case MenuAction_Select:
 		{
-			credits = Shop_GetCredits(param1);
+			credits = GetCredits(param1);
 			
 			char info[32];
 			menu.GetItem(param2, info, sizeof(info));			
@@ -522,8 +572,8 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				{
 					if (StrEqual(info, "buy"))
 					{
-						int tokens = Shop_GetTokens(param1);
-						credits = Shop_GetCredits(param1);
+						int tokens = GetTokens(param1);
+						credits = GetCredits(param1);
 			
 						Menu buyMenu = new Menu(BuyCreditsMenuHandler, MENU_ACTIONS_ALL);
 						char title[255];
@@ -543,42 +593,42 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					{
 						Item_Smoke(param1);				
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceSmoke.IntValue);
+						credits = SetCredits(param1, credits - g_priceSmoke.IntValue);
 					}
 					else if (StrEqual(info, "flashbang"))
 					{
 						Item_Flashbang(param1);
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceFlash.IntValue);
+						credits = SetCredits(param1, credits - g_priceFlash.IntValue);
 					}
 					else if (StrEqual(info, "healthshot"))
 					{
 						Item_Healthshot(param1);
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceHealth.IntValue);
+						credits = SetCredits(param1, credits - g_priceHealth.IntValue);
 					}
 					else if (StrEqual(info, "armor"))
 					{
 						Item_Armor(param1);
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceArmor.IntValue);
+						credits = SetCredits(param1, credits - g_priceArmor.IntValue);
 					}
 					else if (StrEqual(info, "deagle")) 
 					{
 						Item_Deagle(param1);
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceDeagle.IntValue);
+						credits = SetCredits(param1, credits - g_priceDeagle.IntValue);
 					}
 					else if (StrEqual(info, "protein"))
 					{
 						Item_Protein(param1);
 						WriteShopUsed(param1);
-						credits = Shop_SetCredits(param1, credits - g_priceProtein.IntValue);
+						credits = SetCredits(param1, credits - g_priceProtein.IntValue);
 					}
 					else if (StrEqual(info, "roulette"))
 					{
 						Roulette(param1);
-						credits = Shop_SetCredits(param1, credits - 15);
+						credits = SetCredits(param1, credits - 15);
 						OpenShopMenu(param1, 0);
 					}
 				}
@@ -597,14 +647,14 @@ public int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 	return 0;
 }
 
-public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	int tokens;
 	switch (action)
 	{
 		case MenuAction_DrawItem:
 		{
-			tokens = Shop_GetTokens(param1);
+			tokens = GetTokens(param1);
 				
 			int style;
 			char info[32];
@@ -668,7 +718,7 @@ public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param
 		}
 		case MenuAction_Select:
 		{
-			tokens = Shop_GetTokens(param1);
+			tokens = GetTokens(param1);
 			
 			char info[32];
 			menu.GetItem(param2, info, sizeof(info));			
@@ -679,8 +729,8 @@ public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param
 				{
 					if (StrEqual(info, "buy"))
 					{
-						tokens = Shop_GetTokens(param1);
-						int credits = Shop_GetCredits(param1);
+						tokens = GetTokens(param1);
+						int credits = GetCredits(param1);
 				
 						Menu buyMenu = new Menu(BuyTokensMenuHandler, MENU_ACTIONS_ALL);
 						char title[255];
@@ -700,31 +750,31 @@ public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param
 					{
 						Item_HealthshotCT(param1);
 						g_ShopUsed[param1]++;
-						Shop_SetTokens(param1, tokens - g_priceHealthCT.IntValue);
+						SetTokens(param1, tokens - g_priceHealthCT.IntValue);
 					}
 					else if (StrEqual(info, "tagrenade"))
 					{
 						Item_TaGrenade(param1);
 						g_ShopUsed[param1]++;
-						Shop_SetTokens(param1, tokens - g_priceTacticalGrenade.IntValue);
+						SetTokens(param1, tokens - g_priceTacticalGrenade.IntValue);
 					}
 					else if (StrEqual(info, "armor"))
 					{
 						Item_ArmorCT(param1);
 						g_ShopUsed[param1]++;
-						Shop_SetTokens(param1, tokens - g_priceArmorCT.IntValue);
+						SetTokens(param1, tokens - g_priceArmorCT.IntValue);
 					}
 					else if (StrEqual(info, "awp"))
 					{
 						Item_Awp(param1);
 						g_ShopUsed[param1]++;
-						Shop_SetTokens(param1, tokens - g_priceAWP.IntValue);
+						SetTokens(param1, tokens - g_priceAWP.IntValue);
 					}
 					else if (StrEqual(info, "antiterror"))
 					{
 						Item_Antiterror(param1);
 						g_ShopUsed[param1]++;						
-						Shop_SetTokens(param1, tokens - g_priceAntiterror.IntValue);
+						SetTokens(param1, tokens - g_priceAntiterror.IntValue);
 					}
 				}
 				else 
@@ -742,14 +792,14 @@ public int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param
 	return 0;
 }
 
-public int BuyCreditsMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+int BuyCreditsMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	int tokens;
 	switch (action)
 	{
 		case MenuAction_DrawItem:
 		{
-			tokens = Shop_GetTokens(param1);
+			tokens = GetTokens(param1);
 			
 			int style;
 			char info[32];
@@ -824,41 +874,41 @@ public int BuyCreditsMenuHandler(Menu menu, MenuAction action, int param1, int p
 		}
 		case MenuAction_Select:
 		{
-			tokens = Shop_GetTokens(param1);
-			int credits = Shop_GetCredits(param1);
+			tokens = GetTokens(param1);
+			int credits = GetCredits(param1);
 			
 			char info[32];
 			menu.GetItem(param2, info, sizeof(info));
 			
 			if (StrEqual(info, "5"))
 			{
-				credits = Shop_SetCredits(param1, credits + 5);
-				tokens = Shop_SetTokens(param1, tokens - 1);
+				credits = SetCredits(param1, credits + 5);
+				tokens = SetTokens(param1, tokens - 1);
 			}
 			else if (StrEqual(info, "50"))
 			{
-				credits = Shop_SetCredits(param1, credits + 50);
-				tokens = Shop_SetTokens(param1, tokens - 10);
+				credits = SetCredits(param1, credits + 50);
+				tokens = SetTokens(param1, tokens - 10);
 			}
 			else if (StrEqual(info, "100"))
 			{
-				credits = Shop_SetCredits(param1, credits + 100);
-				tokens = Shop_SetTokens(param1, tokens - 20);
+				credits = SetCredits(param1, credits + 100);
+				tokens = SetTokens(param1, tokens - 20);
 			}
 			else if (StrEqual(info, "500"))
 			{
-				credits = Shop_SetCredits(param1, credits + 500);
-				tokens = Shop_SetTokens(param1, tokens - 100);
+				credits = SetCredits(param1, credits + 500);
+				tokens = SetTokens(param1, tokens - 100);
 			}
 			else if (StrEqual(info, "1000"))
 			{
-				credits = Shop_SetCredits(param1, credits + 1000);
-				tokens = Shop_SetTokens(param1, tokens - 200);
+				credits = SetCredits(param1, credits + 1000);
+				tokens = SetTokens(param1, tokens - 200);
 			}			
 			else if (StrEqual(info, "10000"))
 			{
-				credits = Shop_SetCredits(param1, credits + 10000);
-				tokens = Shop_SetTokens(param1, tokens - 2000);
+				credits = SetCredits(param1, credits + 10000);
+				tokens = SetTokens(param1, tokens - 2000);
 			}
 			
 			Menu buyMenu = new Menu(BuyCreditsMenuHandler, MENU_ACTIONS_ALL);
@@ -885,14 +935,14 @@ public int BuyCreditsMenuHandler(Menu menu, MenuAction action, int param1, int p
 	return 0;
 }
 
-public int BuyTokensMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+int BuyTokensMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	int credits;
 	switch (action)
 	{
 		case MenuAction_DrawItem:
 		{
-			credits = Shop_GetCredits(param1);
+			credits = GetCredits(param1);
 			
 			int style;
 			char info[32];
@@ -967,41 +1017,41 @@ public int BuyTokensMenuHandler(Menu menu, MenuAction action, int param1, int pa
 		}
 		case MenuAction_Select:
 		{
-			int tokens = Shop_GetTokens(param1);
-			credits = Shop_GetCredits(param1);
+			int tokens = GetTokens(param1);
+			credits = GetCredits(param1);
 			
 			char info[32];
 			menu.GetItem(param2, info, sizeof(info));
 			
 			if (StrEqual(info, "1"))
 			{
-				credits = Shop_SetCredits(param1, credits - 5);
-				tokens = Shop_SetTokens(param1, tokens + 1);
+				credits = SetCredits(param1, credits - 5);
+				tokens = SetTokens(param1, tokens + 1);
 			}
 			else if (StrEqual(info, "10"))
 			{
-				credits = Shop_SetCredits(param1, credits - 50);
-				tokens = Shop_SetTokens(param1, tokens + 10);
+				credits = SetCredits(param1, credits - 50);
+				tokens = SetTokens(param1, tokens + 10);
 			}
 			else if (StrEqual(info, "20"))
 			{
-				credits = Shop_SetCredits(param1, credits - 100);
-				tokens = Shop_SetTokens(param1, tokens + 20);
+				credits = SetCredits(param1, credits - 100);
+				tokens = SetTokens(param1, tokens + 20);
 			}
 			else if (StrEqual(info, "100"))
 			{
-				credits = Shop_SetCredits(param1, credits - 500);
-				tokens = Shop_SetTokens(param1, tokens + 100);
+				credits = SetCredits(param1, credits - 500);
+				tokens = SetTokens(param1, tokens + 100);
 			}
 			else if (StrEqual(info, "200"))
 			{
-				credits = Shop_SetCredits(param1, credits - 1000);
-				tokens = Shop_SetTokens(param1, tokens + 200);
+				credits = SetCredits(param1, credits - 1000);
+				tokens = SetTokens(param1, tokens + 200);
 			}			
 			else if (StrEqual(info, "2000"))
 			{
-				credits = Shop_SetCredits(param1, credits - 10000);
-				tokens = Shop_SetTokens(param1, tokens + 2000);
+				credits = SetCredits(param1, credits - 10000);
+				tokens = SetTokens(param1, tokens + 2000);
 			}
 			
 			Menu buyMenu = new Menu(BuyTokensMenuHandler, MENU_ACTIONS_ALL);
@@ -1028,7 +1078,227 @@ public int BuyTokensMenuHandler(Menu menu, MenuAction action, int param1, int pa
 	return 0;
 }
 
-int Shop_GetTokens(int client)
+int pMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+			
+			int client = param1;
+			if (StrEqual(info, "mp5"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_mp5sd");
+			}
+			else if (StrEqual(info, "m4a1"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_m4a1");
+			}
+			else if (StrEqual(info, "m4a1-s"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_m4a1_silencer");
+			}
+			else if (StrEqual(info, "xm1014"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_xm1014");
+			}
+			else if (StrEqual(info, "awp"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_awp");
+			}
+			else if (StrEqual(info, "m249"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_m249");
+			}
+			else if (StrEqual(info, "negev"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_negev");
+			}
+			
+			//secondary weapons
+			Menu s = new Menu(sMenuHandler, MENU_ACTIONS_ALL);
+			s.SetTitle("Выбор оружия");
+			s.Pagination = MENU_NO_PAGINATION;
+			
+			s.AddItem("usp", "USP-S");
+			s.AddItem("p250", "P250");
+			s.AddItem("tec", "Tec-9");
+			s.AddItem("berettas", "Dual Berettas");
+			s.AddItem("deagle", "Desert Eagle");
+			s.AddItem("revolver", "R8 Revoler");
+			s.AddItem("none", "Пропустить");
+			
+			s.Display(client, MENU_TIME_FOREVER);
+		}
+	}
+}
+
+int sMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+			
+			int client = param1;
+			if (StrEqual(info, "usp"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_usp_silencer");
+			}
+			else if (StrEqual(info, "p250"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_p250");
+			}
+			else if (StrEqual(info, "tec"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_tec9");
+			}
+			else if (StrEqual(info, "berettas"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_elite");
+			}
+			else if (StrEqual(info, "deagle"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_deagle");
+			}
+			else if (StrEqual(info, "revolver"))
+			{
+				int weapon;
+				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
+				{
+					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+					AcceptEntityInput(weapon, "Kill");
+				}
+				GivePlayerItem(client, "weapon_revolver");
+			}
+		
+			Menu g = new Menu(gMenuHandler, MENU_ACTIONS_ALL);
+			g.SetTitle("Выбор гранаты");
+			g.Pagination = MENU_NO_PAGINATION;
+			
+			g.AddItem("he_fire", "Наступательная + зажигательная");
+			g.AddItem("he_smoke", "Наступательная + дымовая");
+			g.AddItem("flash_smoke", "Световая + дымовая");
+			g.AddItem("flash_fire", "Световая + зажигательная");
+			
+			g.Display(client, MENU_TIME_FOREVER);
+		}
+	}
+}
+
+int gMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+			
+			int client = param1;
+			if (StrEqual(info, "he_fire"))
+			{
+				GivePlayerItem(client, "weapon_hegrenade");
+				GivePlayerItem(client, "weapon_incgrenade");
+			}
+			else if (StrEqual(info, "he_smoke"))
+			{				
+				GivePlayerItem(client, "weapon_hegrenade");
+				GivePlayerItem(client, "weapon_smokegrenade");
+			}			
+			else if (StrEqual(info, "flash_smoke"))
+			{				
+				GivePlayerItem(client, "weapon_flashbang");
+				GivePlayerItem(client, "weapon_smokegrenade");
+			}			
+			else if (StrEqual(info, "flash_fire"))
+			{
+				GivePlayerItem(client, "weapon_flashbang");
+				GivePlayerItem(client, "weapon_incgrenade");
+			}			
+		}		
+	}
+}
+
+/* ТЕХНИЧЕСКИЕ ФУНКЦИИ */
+
+int GetTokens(int client)
 {
 	int tokens;
 	
@@ -1067,7 +1337,7 @@ int Shop_GetTokens(int client)
 	return tokens;
 }
 
-int Shop_SetTokens(int client, int amount)
+int SetTokens(int client, int amount)
 {
 	char error[255];
 	Database db = SQL_DefConnect(error, sizeof(error));
@@ -1095,7 +1365,7 @@ int Shop_SetTokens(int client, int amount)
 	return amount;
 }
 
-int Shop_GetCredits(int client)
+int GetCredits(int client)
 {
 	int credits;
 	
@@ -1134,7 +1404,7 @@ int Shop_GetCredits(int client)
 	return credits;
 }
 
-int Shop_SetCredits(int client, int amount)
+int SetCredits(int client, int amount)
 {	
 	char error[255];
 	Database db = SQL_DefConnect(error, sizeof(error));
@@ -1167,10 +1437,14 @@ void WriteShopUsed(int client)
 	g_ShopUsed[client] = 1;
 }
 
+/* ХУКИ ДЛЯ ТАЙМЕРОВ */
+
 Action BlockShop(Handle timer)
 {
 	g_ShopAvaliable = false;
 }
+
+/* ТОВАРЫ МАГАЗИНА */
 
 void Item_Smoke(int client)
 {
@@ -1312,222 +1586,3 @@ void Item_Antiterror(int client)
 	p.Display(client, MENU_TIME_FOREVER);	
 }
 
-public int pMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char info[32];
-			menu.GetItem(param2, info, sizeof(info));
-			
-			int client = param1;
-			if (StrEqual(info, "mp5"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_mp5sd");
-			}
-			else if (StrEqual(info, "m4a1"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_m4a1");
-			}
-			else if (StrEqual(info, "m4a1-s"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_m4a1_silencer");
-			}
-			else if (StrEqual(info, "xm1014"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_xm1014");
-			}
-			else if (StrEqual(info, "awp"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_awp");
-			}
-			else if (StrEqual(info, "m249"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_m249");
-			}
-			else if (StrEqual(info, "negev"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_negev");
-			}
-			
-			//secondary weapons
-			Menu s = new Menu(sMenuHandler, MENU_ACTIONS_ALL);
-			s.SetTitle("Выбор оружия");
-			s.Pagination = MENU_NO_PAGINATION;
-			
-			s.AddItem("usp", "USP-S");
-			s.AddItem("p250", "P250");
-			s.AddItem("tec", "Tec-9");
-			s.AddItem("berettas", "Dual Berettas");
-			s.AddItem("deagle", "Desert Eagle");
-			s.AddItem("revolver", "R8 Revoler");
-			s.AddItem("none", "Пропустить");
-			
-			s.Display(client, MENU_TIME_FOREVER);
-		}
-	}
-}
-
-public int sMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char info[32];
-			menu.GetItem(param2, info, sizeof(info));
-			
-			int client = param1;
-			if (StrEqual(info, "usp"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_usp_silencer");
-			}
-			else if (StrEqual(info, "p250"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_p250");
-			}
-			else if (StrEqual(info, "tec"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_tec9");
-			}
-			else if (StrEqual(info, "berettas"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_elite");
-			}
-			else if (StrEqual(info, "deagle"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_deagle");
-			}
-			else if (StrEqual(info, "revolver"))
-			{
-				int weapon;
-				if ((weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY)) != -1)
-				{
-					SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-					AcceptEntityInput(weapon, "Kill");
-				}
-				GivePlayerItem(client, "weapon_revolver");
-			}
-		
-			Menu g = new Menu(gMenuHandler, MENU_ACTIONS_ALL);
-			g.SetTitle("Выбор гранаты");
-			g.Pagination = MENU_NO_PAGINATION;
-			
-			g.AddItem("he_fire", "Наступательная + зажигательная");
-			g.AddItem("he_smoke", "Наступательная + дымовая");
-			g.AddItem("flash_smoke", "Световая + дымовая");
-			g.AddItem("flash_fire", "Световая + зажигательная");
-			
-			g.Display(client, MENU_TIME_FOREVER);
-		}
-	}
-}
-
-public int gMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char info[32];
-			menu.GetItem(param2, info, sizeof(info));
-			
-			int client = param1;
-			if (StrEqual(info, "he_fire"))
-			{
-				GivePlayerItem(client, "weapon_hegrenade");
-				GivePlayerItem(client, "weapon_incgrenade");
-			}
-			else if (StrEqual(info, "he_smoke"))
-			{				
-				GivePlayerItem(client, "weapon_hegrenade");
-				GivePlayerItem(client, "weapon_smokegrenade");
-			}			
-			else if (StrEqual(info, "flash_smoke"))
-			{				
-				GivePlayerItem(client, "weapon_flashbang");
-				GivePlayerItem(client, "weapon_smokegrenade");
-			}			
-			else if (StrEqual(info, "flash_fire"))
-			{
-				GivePlayerItem(client, "weapon_flashbang");
-				GivePlayerItem(client, "weapon_incgrenade");
-			}			
-		}		
-	}
-}
-
-//the end
