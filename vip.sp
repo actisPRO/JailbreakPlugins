@@ -50,6 +50,12 @@ public void OnPluginStart()
 	g_VipUsers = new ArrayList();
 }
 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	CreateNative("Vip_IsVip", Native_IsVip);
+	return APLRes_Success;
+}
+
 public Action Rehash(Handle timer, int uselessInfo)
 {
 	ServerCommand("sm_rehash");
@@ -309,6 +315,12 @@ public void CommandVIPFakect(int client)
 	
 	g_VipUsed[client] = true;	
 }
+
+public int Native_IsVip(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	return IsVip(client);
+} 
 
 bool IsVip(int client)
 {
