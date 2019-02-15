@@ -14,20 +14,204 @@ public Plugin myinfo = {
 	name        = "ID and Ranks",
 	author      = "Actis",
 	description = "",
-	version     = "1.0.0",
+	version     = "1.1.0",
 	url         = "CS-JB.RU"
 };
 
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_n", GetMyId);
-	RegConsoleCmd("sm_id", GetInfo);
-	
+	RegConsoleCmd("sm_id", GetInfo);	
 	
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd);
+}
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	CreateNative("Id_CalcRank", Native_CalcRank);
+	CreateNative("Id_GetId", Native_GetId);
+	CreateNative("Id_SetXP", Native_SetXP); 
+	CreateNative("Id_GetXP", Native_GetXP);
+	CreateNative("Id_AddXP", Native_AddXp);
+	return APLRes_Success;
+}
+
+/* ХЭНДЛЕРЫ ДЛЯ МЕНЮ */
+
+int PlayersIds(Menu menu, MenuAction action, int param1, int param2) 
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char info[32];
+			menu.GetItem(param2, info, sizeof(info));
+			int cid = -1;
+			StringToIntEx(info, cid);
+			
+			char name[32];
+			GetClientName(cid, name, 32);
+			
+			char buffer[255];
+			Format(buffer, 255, "{GREEN}[!id]{DEFAULT} %s | Номер %d | Ранг %d | %s",
+				name, GetId(cid), CalcRank(GetXP(cid)), GetAdminRank(cid));
+			CGOPrintToChatAll(buffer);
+		}
+	}
+}
+
+/* КОМАНДЫ */
+
+Action GetInfo(int client, int args)
+{
+	Menu menu = new Menu(PlayersIds);
+	menu.SetTitle("Выберите игрока:");
+	
+	for (int i = 1; i <= MaxClients; i++) 
+	{
+		if (IsClientInGame(i))
+		{			
+			if (GetClientTeam(i) == CS_TEAM_T || GetClientTeam(i) == CS_TEAM_CT || GetClientTeam(i) == CS_TEAM_SPECTATOR)
+			{
+				char name[32];
+				GetClientName(i, name, 32);
+			
+				char cid[8];
+				IntToString(i, cid, 8);
+				menu.AddItem(cid, name);
+			}
+		}
+	}
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+Action GetMyId(int client, int args)
+{
+	char buffer[255];
+	Format(buffer, 255, "{GREEN}[!id]{DEFAULT} Ваш ID: %d", GetId(client));
+	CGOPrintToChat(client, buffer);
+	
+	return Plugin_Handled;
+}
+
+/* СОБЫТИЯ */
+
+void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+	int killer = GetClientOfUserId(event.GetInt("attacker"));
+	int killed = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (killer != killed)
+	{
+		if (GetClientTeam(killer) == CS_TEAM_T && GetClientTeam(killed) == CS_TEAM_CT)
+		{			
+			AddXp(killer, 1);							
+		}
+		else if (GetClientTeam(killer) == CS_TEAM_CT && IsClientRebel(killed))
+		{
+			AddXp(killer, 1);
+		}
+	}
+}
+
+void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	int winner = event.GetInt("winner");
+	for (int i = 1; i <= MaxClients; i++) 
+	{
+		if (IsClientInGame(i))
+		{			
+			if (GetClientTeam(i) == CS_TEAM_T || GetClientTeam(i) == CS_TEAM_CT)
+			{
+				AddXp(i, 1);
+			}
+			
+			if (GetClientTeam(i) == winner)
+			{
+				if (IsPlayerAlive(i))
+				{
+					switch (GetClientTeam(i))
+					{
+						case CS_TEAM_T:
+						{
+							AddXp(i, 2);
+						}
+						case CS_TEAM_CT:
+						{
+							AddXp(i, 3);
+							if (JWP_IsWarden(i))
+							{
+								AddXp(i, 2);	
+							}
+						}
+					}
+				}
+			}			
+			
+		}
+	}
+}
+
+void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	char error[255];
+	Database db = SQL_DefConnect(error, sizeof(error));
+		    
+	if (db == null)
+	{
+	  	PrintToServer("Could not connect: %s", error);
+	} 
+	else 
+	{
+		char steamid64[64];
+		char steamid2[64];
+		char ip[32];
+		char usr[35];
+	   	GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
+	   	GetClientAuthId(client, AuthId_Steam2, steamid2, 64);
+		GetClientIP(client, ip, 32, true);
+		GetClientName(client, usr, 35);
+		
+		
+		char buffer[255];
+		Format(buffer, 255, "SELECT `id` FROM `id_accounts` WHERE `steamid64` = '%s'", steamid64);
+		DBResultSet query = SQL_Query(db, buffer);
+		if (query == null)
+	   	{
+			/* здесь был ненужный код, а теперь его нет. вообще, надо поставить обработчик ошибок, но... зачем? */
+	   	}
+		else 
+		{
+			if (SQL_GetRowCount(query) == 0)
+			{
+				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
+				if (!SQL_FastQuery(db, buffer))
+				{
+					SQL_GetError(db, error, sizeof(error));
+					PrintToServer("Failed to query (error: %s)", error);
+				}
+			}
+			else
+			{
+				Format(buffer, 255, "UPDATE `id_accounts` SET `IP` = '%s', `name` = '%s' WHERE `id_accounts`.`steamid64` = %s;", ip, usr, steamid64);
+				if (!SQL_FastQuery(db, buffer))
+				{
+					SQL_GetError(db, error, sizeof(error));
+					PrintToServer("Failed to query (error: %s)", error);
+				}
+			}
+			
+			delete query;
+		}
+	}
 }
 
 void Event_RoundFreezeEnd(Event event, const char[] name, bool dontBroadcast)
@@ -126,191 +310,43 @@ void Event_RoundFreezeEnd(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
-int PlayersIds(Menu menu, MenuAction action, int param1, int param2) 
+/* НАТИВЫ */
+
+public int Native_CalcRank(Handle plugin, int numParams)
 {
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char info[32];
-			menu.GetItem(param2, info, sizeof(info));
-			int cid = -1;
-			StringToIntEx(info, cid);
-			
-			char name[32];
-			GetClientName(cid, name, 32);
-			
-			char buffer[255];
-			Format(buffer, 255, "{GREEN}[!id]{DEFAULT} %s | Номер %d | Ранг %d | %s",
-				name, GetId(cid), CalcRank(GetXP(cid)), GetAdminRank(cid));
-			CGOPrintToChatAll(buffer);
-		}
-	}
+	int xp = GetNativeCell(1);
+	return CalcRank(xp);
 }
 
-public void AddXp(int client, int amount)
+public int Native_GetId(Handle plugin, int numParams)
 {
-	int oldXp = GetXP(client);
-	SetXp(client, oldXp + amount);
-	int oldRank = CalcRank(oldXp);
-	int newRank = CalcRank(oldXp + amount);
-	char name[35];
-	GetClientName(client, name, 35);
-	if (newRank > oldRank)
-	{
-		CGOPrintToChatAll("{GREEN}[!id]{DEFAULT} {OLIVE}Игрок %s получил новый ранг!", name);
-	}
+	int client = GetNativeCell(1);
+	return GetId(client);
 }
 
-Action GetInfo(int client, int args)
+public int Native_SetXP(Handle plugin, int numParams)
 {
-	Menu menu = new Menu(PlayersIds);
-	menu.SetTitle("Выберите игрока:");
-	
-	for (int i = 1; i <= MaxClients; i++) 
-	{
-		if (IsClientInGame(i))
-		{			
-			if (GetClientTeam(i) == CS_TEAM_T || GetClientTeam(i) == CS_TEAM_CT || GetClientTeam(i) == CS_TEAM_SPECTATOR)
-			{
-				char name[32];
-				GetClientName(i, name, 32);
-			
-				char cid[8];
-				IntToString(i, cid, 8);
-				menu.AddItem(cid, name);
-			}
-		}
-	}
-	
-	menu.Display(client, MENU_TIME_FOREVER);
-	
-	return Plugin_Handled;
+	int client = GetNativeCell(1);
+	int xp = GetNativeCell(2);
+	SetXp(client, xp);
+	return 0;
 }
 
-Action GetMyId(int client, int args)
+public int Native_GetXP(Handle plugin, int numParams)
 {
-	char buffer[255];
-	Format(buffer, 255, "{GREEN}[!id]{DEFAULT} Ваш ID: %d", GetId(client));
-	CGOPrintToChat(client, buffer);
-	
-	return Plugin_Handled;
+	int client = GetNativeCell(1);
+	return GetXP(client);
 }
 
-void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+public int Native_AddXp(Handle plugin, int numParams)
 {
-	int killer = GetClientOfUserId(event.GetInt("attacker"));
-	int killed = GetClientOfUserId(event.GetInt("userid"));
-	
-	if (killer != killed)
-	{
-		if (GetClientTeam(killer) == CS_TEAM_T && GetClientTeam(killed) == CS_TEAM_CT)
-		{			
-			AddXp(killer, 1);							
-		}
-		else if (GetClientTeam(killer) == CS_TEAM_CT && IsClientRebel(killed))
-		{
-			AddXp(killer, 1);
-		}
-	}
+	int client = GetNativeCell(1);
+	int amount = GetNativeCell(2);
+	AddXp(client, amount);
+	return 0;
 }
 
-void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
-{
-	int winner = event.GetInt("winner");
-	for (int i = 1; i <= MaxClients; i++) 
-	{
-		if (IsClientInGame(i))
-		{			
-			if (GetClientTeam(i) == CS_TEAM_T || GetClientTeam(i) == CS_TEAM_CT)
-			{
-				AddXp(i, 1);
-			}
-			
-			if (GetClientTeam(i) == winner)
-			{
-				if (IsPlayerAlive(i))
-				{
-					switch (GetClientTeam(i))
-					{
-						case CS_TEAM_T:
-						{
-							AddXp(i, 2);
-						}
-						case CS_TEAM_CT:
-						{
-							AddXp(i, 3);
-							if (JWP_IsWarden(i))
-							{
-								AddXp(i, 2);	
-							}
-						}
-					}
-				}
-			}			
-			
-		}
-	}
-}
-
-/*
- * Выдача ID при первом спавне.
- */
-void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	
-	char error[255];
-	Database db = SQL_DefConnect(error, sizeof(error));
-		    
-	if (db == null)
-	{
-	  	PrintToServer("Could not connect: %s", error);
-	} 
-	else 
-	{
-		char steamid64[64];
-		char steamid2[64];
-		char ip[32];
-		char usr[35];
-	   	GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
-	   	GetClientAuthId(client, AuthId_Steam2, steamid2, 64);
-		GetClientIP(client, ip, 32, true);
-		GetClientName(client, usr, 35);
-		
-		
-		char buffer[255];
-		Format(buffer, 255, "SELECT `id` FROM `id_accounts` WHERE `steamid64` = '%s'", steamid64);
-		DBResultSet query = SQL_Query(db, buffer);
-		if (query == null)
-	   	{
-			/* здесь был ненужный код, а теперь его нет. вообще, надо поставить обработчик ошибок, но... зачем? */
-	   	}
-		else 
-		{
-			if (SQL_GetRowCount(query) == 0)
-			{
-				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
-				if (!SQL_FastQuery(db, buffer))
-				{
-					SQL_GetError(db, error, sizeof(error));
-					PrintToServer("Failed to query (error: %s)", error);
-				}
-			}
-			else
-			{
-				Format(buffer, 255, "UPDATE `id_accounts` SET `IP` = '%s', `name` = '%s' WHERE `id_accounts`.`steamid64` = %s;", ip, usr, steamid64);
-				if (!SQL_FastQuery(db, buffer))
-				{
-					SQL_GetError(db, error, sizeof(error));
-					PrintToServer("Failed to query (error: %s)", error);
-				}
-			}
-			
-			delete query;
-		}
-	}
-}
+/* ФУНКЦИИ */
 
 int CalcRank(int xp)
 {
@@ -366,32 +402,6 @@ int CalcRank(int xp)
 	return 1;
 }
 
-void SetXp(int client, int xp)
-{
-	char error[255];
-	Database db = SQL_DefConnect(error, sizeof(error));
-		    
-	if (db == null)
-	{
-	  	PrintToServer("Could not connect: %s", error);
-	}
-	else
-	{
-		char steamid64[64];
-		GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
-		
-		char buffer[255];
-		Format(buffer, 255, "UPDATE `id_accounts` SET `xp` = '%d' WHERE `id_accounts`.`id` = %d ", xp, GetId(client));
-		if (!SQL_FastQuery(db, buffer))
-		{
-			SQL_GetError(db, error, sizeof(error));
-			PrintToServer("Failed to query (error: %s)", error);
-		}
-		
-		delete db;
-	}
-}
-
 int GetId(int client)
 {	
 	char error[255];
@@ -426,6 +436,32 @@ int GetId(int client)
 	}
 	
 	return -1;
+}
+
+void SetXp(int client, int xp)
+{
+	char error[255];
+	Database db = SQL_DefConnect(error, sizeof(error));
+		    
+	if (db == null)
+	{
+	  	PrintToServer("Could not connect: %s", error);
+	}
+	else
+	{
+		char steamid64[64];
+		GetClientAuthId(client, AuthId_SteamID64, steamid64, 64);
+		
+		char buffer[255];
+		Format(buffer, 255, "UPDATE `id_accounts` SET `xp` = '%d' WHERE `id_accounts`.`id` = %d ", xp, GetId(client));
+		if (!SQL_FastQuery(db, buffer))
+		{
+			SQL_GetError(db, error, sizeof(error));
+			PrintToServer("Failed to query (error: %s)", error);
+		}
+		
+		delete db;
+	}
 }
 
 int GetXP(int client)
@@ -467,6 +503,20 @@ int GetXP(int client)
 	}
 	
 	return -1;
+}
+
+void AddXp(int client, int amount)
+{
+	int oldXp = GetXP(client);
+	SetXp(client, oldXp + amount);
+	int oldRank = CalcRank(oldXp);
+	int newRank = CalcRank(oldXp + amount);
+	char name[35];
+	GetClientName(client, name, 35);
+	if (newRank > oldRank)
+	{
+		CGOPrintToChatAll("{GREEN}[!id]{DEFAULT} {OLIVE}Игрок %s получил новый ранг!", name);
+	}
 }
 
 char[] GetAdminRank(int client)
