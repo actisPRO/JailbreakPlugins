@@ -17,7 +17,7 @@ public Plugin myinfo = {
 	name        = "JailBreak Shop",
 	author      = "Actis",
 	description = "Shop for JailBreak",
-	version     = "2.0.0",
+	version     = "2.1.0",
 	url         = "CS-JB.RU"
 };
 
