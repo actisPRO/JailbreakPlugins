@@ -9,6 +9,7 @@
 #include <menus>
 #include <lastrequest>
 #include <jwp>
+#include <achivements>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -1488,6 +1489,23 @@ void Item_Protein(int client)
 {
 	SetEntityHealth(client, 500);
 	CGOPrintToChatAll("{GREEN}[Чёрный рынок]{DEFAULT} Кому-то пронесли протеин.");
+	
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Steam2, steamid, 64);
+	
+	int score = Achivements_GetValue(steamid, "protein");
+	if (score < 0)
+	{
+		LogError("Errored while getting protein score for %s. Error code: %d", steamid, score);
+		return;
+	}
+	
+	int result = Achivements_SetValue(steamid, "protein", score + 1);
+	if (result < 0)
+	{
+		LogError("Errored while setting protein score for %s. Error code: %d", steamid, result);
+		return;
+	}
 }
 
 void Roulette(int client)
