@@ -24,6 +24,16 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_site", ShowSite);
 	RegConsoleCmd("sm_rules", ShowRules);
 	RegAdminCmd("sm_z", ZSay, ADMFLAG_GENERIC, "");
+	
+	HookEvent("player_spawn", Event_PlayerSpawn);
+}
+
+void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+	SetEntityRenderColor(client, 255, 255, 255, 255);
 }
 
 public Action ShowSite(int client, int args)
