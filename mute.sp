@@ -60,7 +60,7 @@ void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	g_Timer = CreateTimer(30.0, UnmuteAll);
-	CGOPrintToChatAll("[SM] {GREEN}Заключенным отключен микрофон на 30 секунд.");
+	CGOPrintToChatAll("{GREEN}Заключенным отключен микрофон на 30 секунд.");
 }
 
 Action UnmuteAll(Handle timer)
@@ -73,6 +73,6 @@ Action UnmuteAll(Handle timer)
 		}
 	}
 	
-	CGOPrintToChatAll("[SM] {GREEN}Заключенные снова могут говорить.");
+	CGOPrintToChatAll("{GREEN}Заключенные снова могут говорить.");
 	g_Timer = null;
 }
