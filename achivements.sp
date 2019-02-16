@@ -3,6 +3,10 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+#define ACHIVEMENT_ERR_DB_CONNECT -1
+#define ACHIVEMENT_ERR_DB_QUERY -2
+#define ACHIVEMENT_ERR_DB_NOVAL -3
+
 public Plugin myinfo = {
 	name        = "Achivements",
 	author      = "Actis",
@@ -45,7 +49,40 @@ public int Native_SetValue(Handle plugin, int numParams)
 
 int GetValue(char[] steamid, char[] index)
 {
-	return 0;
+	int value;
+	
+	char error[255];
+	Database db = SQL_DefConnect(error, sizeof(error));
+	if (db == null)
+	{
+		return ACHIVEMENT_ERR_DB_CONNECT;
+	}
+	else
+	{
+		char query_text[512];
+		Format(query_text, 512, "SELECT `achivement_%s` FROM `id_accounts` WHERE `steamid` = '%s'", index, steamid);
+		DBResultSet query = SQL_Query(db, query_text);
+		
+		if (query == null)
+		{
+			return ACHIVEMENT_ERR_DB_QUERY;
+		}
+		else 
+		{
+			if (SQL_GetRowCount(query) == 0)
+			{
+				return ACHIVEMENT_ERR_DB_NOVAL;
+			}
+			else
+			{
+				while (SQL_FetchRow(query))
+				{						
+					value = SQL_FetchInt(query, 0);
+				}
+				return value;
+			}
+		}
+	}
 }
 
 int SetValue(char[] steamid, char[] index, int newValue)
