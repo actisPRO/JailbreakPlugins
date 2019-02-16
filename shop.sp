@@ -595,42 +595,77 @@ int ShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 						Item_Smoke(param1);				
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceSmoke.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceSmoke.IntValue);
 					}
 					else if (StrEqual(info, "flashbang"))
 					{
 						Item_Flashbang(param1);
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceFlash.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceFlash.IntValue);
 					}
 					else if (StrEqual(info, "healthshot"))
 					{
 						Item_Healthshot(param1);
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceHealth.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceHealth.IntValue);
 					}
 					else if (StrEqual(info, "armor"))
 					{
 						Item_Armor(param1);
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceArmor.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceArmor.IntValue);
 					}
 					else if (StrEqual(info, "deagle")) 
 					{
 						Item_Deagle(param1);
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceDeagle.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceDeagle.IntValue);
 					}
 					else if (StrEqual(info, "protein"))
 					{
 						Item_Protein(param1);
 						WriteShopUsed(param1);
 						credits = SetCredits(param1, credits - g_priceProtein.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + g_priceProtein.IntValue);
 					}
 					else if (StrEqual(info, "roulette"))
 					{
 						Roulette(param1);
 						credits = SetCredits(param1, credits - 15);
 						OpenShopMenu(param1, 0);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spentcredits");
+						Achivements_SetValue(steamid, "spentcredits", score + 15);
 					}
 				}
 				else
