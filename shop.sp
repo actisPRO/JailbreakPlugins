@@ -246,6 +246,23 @@ public Action Smoke(int client, int args)
 	else
 	{
 		CGOPrintToChat(client, "{GREEN}Вы скурили сигаретку.{DEFAULT}");
+	}
+
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Steam2, steamid, 64);
+	
+	int score = Achivements_GetValue(steamid, "smoke");
+	if (score < 0)
+	{
+		LogError("Errored while getting smoke score for %s. Error code: %d", steamid, score);
+		return;
+	}
+	
+	int result = Achivements_SetValue(steamid, "smoke", score + 1);
+	if (result < 0)
+	{
+		LogError("Errored while setting smoke score for %s. Error code: %d", steamid, result);
+		return;
 	}	
 }
 
@@ -787,30 +804,55 @@ int CTShopMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 						Item_HealthshotCT(param1);
 						g_ShopUsed[param1]++;
 						SetTokens(param1, tokens - g_priceHealthCT.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spenttokens");
+						Achivements_SetValue(steamid, "spenttokens", score + g_priceHealthCT.IntValue);
 					}
 					else if (StrEqual(info, "tagrenade"))
 					{
 						Item_TaGrenade(param1);
 						g_ShopUsed[param1]++;
 						SetTokens(param1, tokens - g_priceTacticalGrenade.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spenttokens");
+						Achivements_SetValue(steamid, "spenttokens", score + g_priceTacticalGrenade.IntValue);
 					}
 					else if (StrEqual(info, "armor"))
 					{
 						Item_ArmorCT(param1);
 						g_ShopUsed[param1]++;
 						SetTokens(param1, tokens - g_priceArmorCT.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spenttokens");
+						Achivements_SetValue(steamid, "spenttokens", score + g_priceArmorCT.IntValue);
 					}
 					else if (StrEqual(info, "awp"))
 					{
 						Item_Awp(param1);
 						g_ShopUsed[param1]++;
 						SetTokens(param1, tokens - g_priceAWP.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spenttokens");
+						Achivements_SetValue(steamid, "spenttokens", score + g_priceAWP.IntValue);
 					}
 					else if (StrEqual(info, "antiterror"))
 					{
 						Item_Antiterror(param1);
 						g_ShopUsed[param1]++;						
 						SetTokens(param1, tokens - g_priceAntiterror.IntValue);
+						
+						char steamid[64];
+						GetClientAuthId(param1, AuthId_Steam2, steamid, 64);						
+						int score = Achivements_GetValue(steamid, "spenttokens");
+						Achivements_SetValue(steamid, "spenttokens", score + g_priceAntiterror.IntValue);
 					}
 				}
 				else 
@@ -1518,6 +1560,23 @@ void Item_Deagle(int client)
 	SetEntProp(iDeagle, Prop_Send, "m_iPrimaryReserveAmmoCount", 7);
 
 	CGOPrintToChatAll("{GREEN}[Чёрный рынок]{DEFAULT} Кому-то пронесли пистолет.");
+	
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Steam2, steamid, 64);
+	
+	int score = Achivements_GetValue(steamid, "deagle");
+	if (score < 0)
+	{
+		LogError("Errored while getting deagle score for %s. Error code: %d", steamid, score);
+		return;
+	}
+	
+	int result = Achivements_SetValue(steamid, "deagle", score + 1);
+	if (result < 0)
+	{
+		LogError("Errored while setting deagle score for %s. Error code: %d", steamid, result);
+		return;
+	}
 }
 
 void Item_Protein(int client)
