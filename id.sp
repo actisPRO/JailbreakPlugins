@@ -187,6 +187,8 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		
 		char buffer[255];
 		Format(buffer, 255, "SELECT `id` FROM `id_accounts` WHERE `steamid64` = '%s'", steamid64);
+		
+		SQL_SetCharset(db, "utf8mb4");
 		DBResultSet query = SQL_Query(db, buffer);
 		if (query == null)
 	   	{
@@ -196,7 +198,12 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		{
 			if (SQL_GetRowCount(query) == 0)
 			{
-				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr);
+				int time = GetTime();
+				char first_login[64];
+
+				FormatTime(first_login, 64, "%F %X", time);
+				
+				Format(buffer, 255, "INSERT INTO `id_accounts` (`id`, `steamid`, `steamid64`, `IP`, `name`, `first_login`, `last_login`, `xp`) VALUES (NULL, '%s', '%s', '%s', '%s', '%s', '%s', '0');", steamid2, steamid64, ip, usr, first_login, first_login);
 				if (!SQL_FastQuery(db, buffer))
 				{
 					SQL_GetError(db, error, sizeof(error));
@@ -204,8 +211,13 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 				}
 			}
 			else
-			{
-				Format(buffer, 255, "UPDATE `id_accounts` SET `IP` = '%s', `name` = '%s' WHERE `id_accounts`.`steamid64` = %s;", ip, usr, steamid64);
+			{				
+				int time = GetTime() - RoundToFloor(GetClientTime(client));
+				char last_login[64];
+				
+				FormatTime(last_login, 64, "%F %X", time);
+				
+				Format(buffer, 255, "UPDATE `id_accounts` SET `IP` = '%s', `name` = '%s', `last_login` = '%s' WHERE `id_accounts`.`steamid64` = %s;", ip, usr, last_login, steamid64);
 				if (!SQL_FastQuery(db, buffer))
 				{
 					SQL_GetError(db, error, sizeof(error));
@@ -606,7 +618,7 @@ char[] GetAdminRank(int client)
 
 int GetAdminPriority(char[] rank)
 {
-	if (StrEqual(rank, "Главный администратор"))
+	if (StrEqual(rank, "Главный администратор")) //Главный администратор
 	{
 		return 6;
 	}
