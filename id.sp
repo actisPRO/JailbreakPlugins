@@ -88,6 +88,10 @@ Action GetInfo(int client, int args)
 	
 	menu.Display(client, MENU_TIME_FOREVER);
 	
+	char name[32];
+	GetClientName(client, name, 32);	
+	LogMessage("%s (%d) made id request", client, client);
+	
 	return Plugin_Handled;
 }
 

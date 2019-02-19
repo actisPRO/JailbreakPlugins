@@ -34,6 +34,10 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 	
 	SetEntityRenderMode(client, RENDER_TRANSCOLOR);
 	SetEntityRenderColor(client, 255, 255, 255, 255);
+	
+	
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Steam2, steamid, 64);
 }
 
 public Action ShowSite(int client, int args)
