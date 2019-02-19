@@ -91,7 +91,7 @@ int MenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			GetClientAuthId(param1, AuthId_Steam2, steamid, 64);
 			
 			char achivement_name[42];
-			Format(achivement_name, 42, "achivement_likew_%s", param2);
+			Format(achivement_name, 42, "achivement_likew_%s", info);
 			Achivements_SetValue(steamid, achivement_name, Achivements_GetValue(steamid, achivement_name) + 1);
 		}
 	}
