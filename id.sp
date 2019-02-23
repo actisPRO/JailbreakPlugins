@@ -192,7 +192,8 @@ void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		DBResultSet query = SQL_Query(db, buffer);
 		if (query == null)
 	   	{
-			/* здесь был ненужный код, а теперь его нет. вообще, надо поставить обработчик ошибок, но... зачем? */
+			SQL_GetError(db, error, 255);
+			LogMessage("Erored while selecting id from db: %s", error);
 	   	}
 		else 
 		{
